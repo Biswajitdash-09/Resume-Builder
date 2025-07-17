@@ -120,46 +120,51 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
   };
 
   return (
-    <Card className="p-4 mb-6">
-      <div className="flex flex-wrap items-center gap-4">
+    <Card className="p-2 sm:p-4 mb-3 sm:mb-6">
+      <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
         {/* Font Size Controls */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Font Size:</span>
+        <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Font Size:</span>
           <Button
             variant="outline"
             size="sm"
             onClick={handleFontSizeDecrease}
             disabled={fontSize <= 8}
+            className="h-8 w-8 p-0 flex-shrink-0"
           >
-            <ZoomOut className="h-4 w-4" />
+            <ZoomOut className="h-3 w-3" />
           </Button>
-          <span className="text-sm min-w-[3rem] text-center">{fontSize}px</span>
+          <span className="text-xs sm:text-sm min-w-[3rem] text-center">{fontSize}px</span>
           <Button
             variant="outline"
             size="sm"
             onClick={handleFontSizeIncrease}
             disabled={fontSize >= 20}
+            className="h-8 w-8 p-0 flex-shrink-0"
           >
-            <ZoomIn className="h-4 w-4" />
+            <ZoomIn className="h-3 w-3" />
           </Button>
         </div>
 
         {/* Resume Import */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center sm:justify-start">
           <label htmlFor="resume-upload" className="cursor-pointer">
             <Button
               variant="outline"
               size="sm"
               disabled={isImporting}
               asChild
+              className="h-8 px-3"
             >
               <span>
                 {isImporting ? (
-                  <FileText className="h-4 w-4 mr-2 animate-spin" />
+                  <FileText className="h-3 w-3 mr-2 animate-spin" />
                 ) : (
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="h-3 w-3 mr-2" />
                 )}
-                {isImporting ? 'Importing...' : 'Import Resume'}
+                <span className="text-xs sm:text-sm">
+                  {isImporting ? 'Importing...' : 'Import Resume'}
+                </span>
               </span>
             </Button>
           </label>

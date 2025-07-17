@@ -36,7 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 export const ResumeBuilder = () => {
   // UI State Management
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [showPreview, setShowPreview] = useState(true); // Controls mobile preview visibility
+  const [showPreview, setShowPreview] = useState(false); // Default to false on mobile
   
   // Resume Configuration
   const [fontSize, setFontSize] = useState(12); // Font size for PDF export
@@ -221,31 +221,36 @@ export const ResumeBuilder = () => {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Application Header - Navigation and controls */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">Resume Builder - By Biswajit Dash</h1>
-            <div className="flex items-center space-x-3">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-sm sm:text-xl font-bold truncate">Resume Builder - By Biswajit Dash</h1>
+            <div className="flex items-center space-x-1 sm:space-x-3">
               {/* Mobile preview toggle - only visible on mobile */}
-              <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)} className="md:hidden">
-                {showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowPreview(!showPreview)} 
+                className="lg:hidden flex-shrink-0 p-2 h-8 w-8"
+              >
+                {showPreview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </Button>
               
               {/* Action buttons */}
-              <Button onClick={handleSave} variant="outline" size="sm">
-                <Save className="h-4 w-4 mr-1" />
-                Save
+              <Button onClick={handleSave} variant="outline" size="sm" className="flex-shrink-0 h-8 px-2 sm:px-3">
+                <Save className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Save</span>
               </Button>
-              <Button onClick={handleExportPDF} size="sm">
-                <Download className="h-4 w-4 mr-1" />
-                PDF
+              <Button onClick={handleExportPDF} size="sm" className="flex-shrink-0 h-8 px-2 sm:px-3">
+                <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">PDF</span>
               </Button>
               
               {/* Dark mode toggle */}
-              <div className="flex items-center space-x-2">
-                <Sun className="h-4 w-4" />
+              <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+                <Sun className="h-3 w-3 sm:h-4 sm:w-4" />
                 <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} />
-                <Moon className="h-4 w-4" />
+                <Moon className="h-3 w-3 sm:h-4 sm:w-4" />
               </div>
             </div>
           </div>
@@ -254,7 +259,7 @@ export const ResumeBuilder = () => {
 
       {/* Main Content Area */}
       <div className="flex-1">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
           {/* Resume Controls - Font size and import/export */}
           <ResumeControls
             fontSize={fontSize}
@@ -263,64 +268,64 @@ export const ResumeBuilder = () => {
           />
 
           {/* Two-column layout: Forms on left, Preview on right */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
             
             {/* Form Section - Contains all input forms */}
-            <div className={`space-y-4 ${showPreview ? 'block' : 'hidden'} lg:block`}>
+            <div className={`space-y-2 sm:space-y-4 ${showPreview ? 'hidden' : 'block'} lg:block`}>
               
               {/* Personal Information Form */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <PersonalInfoForm data={resumeData.personalInfo} onChange={data => updateResumeData('personalInfo', data)} />
               </Card>
 
               {/* Profile Picture Upload */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <ProfilePictureForm data={resumeData.profilePicture} onChange={data => updateResumeData('profilePicture', data)} />
               </Card>
 
               {/* Professional Summary */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <SummaryForm data={resumeData.summary} onChange={data => updateResumeData('summary', data)} />
               </Card>
 
               {/* Education Section */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <EducationForm data={resumeData.education} onChange={data => updateResumeData('education', data)} />
               </Card>
 
               {/* Work Experience Section */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <ExperienceForm data={resumeData.experience} onChange={data => updateResumeData('experience', data)} />
               </Card>
 
               {/* Projects Section */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <ProjectsForm data={resumeData.projects} onChange={data => updateResumeData('projects', data)} />
               </Card>
 
               {/* Skills Section - Categorized skills */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <SkillsForm data={resumeData.skills} onChange={data => updateResumeData('skills', data)} />
               </Card>
 
               {/* Certifications and Awards */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <CertificationsForm data={resumeData.certifications} onChange={data => updateResumeData('certifications', data)} />
               </Card>
 
               {/* Interests and Hobbies */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <InterestsForm data={resumeData.interests} onChange={data => updateResumeData('interests', data)} />
               </Card>
 
               {/* Custom Sections - User-defined sections */}
-              <Card className="p-4">
+              <Card className="p-2 sm:p-4">
                 <CustomSectionsForm data={resumeData.customSections} onChange={data => updateResumeData('customSections', data)} />
               </Card>
             </div>
 
             {/* Preview Section - Live resume preview */}
-            <div className={`sticky top-4 ${!showPreview ? 'block' : 'hidden'} lg:block`}>
+            <div className={`lg:sticky lg:top-20 ${showPreview ? 'block' : 'hidden'} lg:block`}>
               {/* Page overflow warning for multi-page resumes */}
               <PageOverflowWarning 
                 onPageCountChange={setPageCount}
