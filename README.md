@@ -1,8 +1,8 @@
+
 # 🚀 Professional Resume Builder
 
 **A modern, responsive resume builder built with React and TypeScript**
 
-[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://lovable.dev/projects/a5b3339f-5964-4146-abc5-76306c549df5)
 [![React](https://img.shields.io/badge/React-18.3.1-blue)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Latest-blue)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC)](https://tailwindcss.com/)
@@ -39,7 +39,7 @@
 ### 🧩 **Comprehensive Sections**
 - Personal Information with profile picture
 - Professional Summary
-- Work Experience with date ranges
+- Work Experience with date ranges and project links
 - Education with CGPA/GPA
 - Projects with live links
 - Categorized Skills (Technical, Languages, Frameworks, etc.)
@@ -311,6 +311,7 @@ resume-builder/
    - Use bullet points for achievements
    - Include quantifiable results when possible
    - Mark current positions appropriately
+   - Add project links and GitHub repositories
 
 4. **Education**
    - List degrees and certifications
@@ -480,12 +481,7 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 
 ## 🚀 Deployment
 
-### **Lovable Platform** (Recommended)
-1. Connect your GitHub repository
-2. Click "Publish" in the Lovable interface
-3. Your app will be live instantly
-
-### **Other Platforms**
+### **Standard Deployment Platforms**
 - **Vercel**: `npm run build` → Deploy dist folder
 - **Netlify**: Connect GitHub repo → Auto-deploy
 - **GitHub Pages**: Use GitHub Actions for deployment
@@ -496,6 +492,11 @@ Contributions are welcome! Please feel free to submit pull requests or open issu
 - Passionate Full-Stack Developer
 - Expert in React, TypeScript, and Modern Web Technologies
 - Focused on creating user-centric, accessible applications
+
+### Contact Information
+- 📧 Email: biswajitdash929@gmail.com
+- 🐙 GitHub: [Biswajitdash-09](https://github.com/Biswajitdash-09)
+- 💼 LinkedIn: [biswajitdash09](https://www.linkedin.com/in/biswajitdash09)
 
 ## 📄 License
 
