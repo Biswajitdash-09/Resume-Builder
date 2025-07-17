@@ -1,0 +1,21 @@
+
+#root {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  text-align: left;
+}
+
+.resume-preview {
+  font-family: 'Times New Roman', serif;
+  line-height: 1.4;
+  color: #000;
+  background: #fff;
+}
+
+@media print {
+  .resume-preview {
+    font-size: 11pt;
+    line-height: 1.3;
+  }
+}
