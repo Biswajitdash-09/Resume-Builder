@@ -3,10 +3,6 @@
 
 **A modern, responsive resume builder built with React and TypeScript**
 
-[![React](https://img.shields.io/badge/React-18.3.1-blue)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-Latest-blue)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC)](https://tailwindcss.com/)
-[![Vite](https://img.shields.io/badge/Vite-Latest-646CFF)](https://vitejs.dev/)
 
 > Create professional resumes with real-time preview, PDF export, and mobile-responsive design. Built by **Biswajit Dash**.
 
