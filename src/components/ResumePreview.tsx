@@ -1,4 +1,3 @@
-
 import React, { forwardRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Mail, Phone, MapPin, Linkedin, Github, ExternalLink } from 'lucide-react';
@@ -250,9 +249,34 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                 {data.experience.map((exp) => (
                   <div key={exp.id} style={{ pageBreakInside: 'avoid' }}>
                     <div className="flex justify-between items-start mb-1">
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-sm">{exp.position}</h3>
-                        {/* Company name highlighted in bold */}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-gray-900 text-sm">{exp.position}</h3>
+                          <div className="flex gap-1">
+                            {exp.link && (
+                              <a 
+                                href={exp.link} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 transition-colors"
+                                title="View company/project link"
+                              >
+                                <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                              </a>
+                            )}
+                            {exp.github && (
+                              <a 
+                                href={exp.github} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-gray-600 hover:text-gray-800 transition-colors"
+                                title="View source code"
+                              >
+                                <Github className="h-3 w-3 flex-shrink-0" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
                         <p className="font-bold text-gray-900 text-xs">{exp.company}</p>
                       </div>
                       <div className="text-right text-gray-600 text-xs">
@@ -285,11 +309,9 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                   <div key={project.id} style={{ pageBreakInside: 'avoid' }}>
                     <div className="flex justify-between items-start mb-1">
                       <div className="flex-1">
-                        {/* Project name with clickable links positioned close to the name */}
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-bold text-gray-900 text-sm">{project.name}</h3>
                           <div className="flex gap-1">
-                            {/* Live project link - clickable and opens in new tab */}
                             {project.link && (
                               <a 
                                 href={project.link} 
@@ -301,7 +323,6 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                                 <ExternalLink className="h-3 w-3 flex-shrink-0" />
                               </a>
                             )}
-                            {/* GitHub repository link - clickable and opens in new tab */}
                             {project.github && (
                               <a 
                                 href={project.github} 
@@ -315,19 +336,16 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                             )}
                           </div>
                         </div>
-                        {/* Technologies used */}
                         {project.technologies.length > 0 && (
                           <p className="text-gray-600 italic text-xs">
                             {project.technologies.join(', ')}
                           </p>
                         )}
                       </div>
-                      {/* Project timeline */}
                       <div className="text-right text-gray-600 text-xs">
                         <p>{formatDateRange(project.startDate, project.endDate)}</p>
                       </div>
                     </div>
-                    {/* Project description */}
                     <p className="text-gray-700 text-xs">{project.description}</p>
                   </div>
                 ))}

@@ -1,4 +1,3 @@
-
 export interface PersonalInfo {
   firstName: string;
   lastName: string;
@@ -29,6 +28,8 @@ export interface Experience {
   current: boolean;
   description: string;
   location?: string;
+  link?: string;
+  github?: string;
 }
 
 export interface Skill {
