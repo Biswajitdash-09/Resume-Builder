@@ -18,19 +18,27 @@ export const PageOverflowWarning: React.FC<PageOverflowWarningProps> = ({
 
   useEffect(() => {
     const checkOverflow = () => {
-      const resumeElement = document.querySelector('.resume-preview');
-      if (resumeElement) {
-        const height = resumeElement.scrollHeight;
-        // A4 height at 96 DPI is approximately 1123px, with margins it's around 1000px
-        const maxHeight = 1000 * currentPageCount;
-        setIsOverflowing(height > maxHeight);
+      const pages = document.querySelectorAll('.pdf-page');
+      if (pages.length > 0) {
+        let overflowing = false;
+        pages.forEach(page => {
+          if (page.scrollHeight > page.clientHeight + 10) {
+            overflowing = true;
+          }
+        });
+        setIsOverflowing(overflowing);
+      } else {
+        const resumeElement = document.querySelector('.resume-preview');
+        if (resumeElement) {
+          const height = resumeElement.scrollHeight;
+          const maxHeight = 1000 * currentPageCount;
+          setIsOverflowing(height > maxHeight);
+        }
       }
     };
 
-    // Check overflow on mount and when content changes
     checkOverflow();
     
-    // Set up a MutationObserver to watch for changes
     const resumeElement = document.querySelector('.resume-preview');
     if (resumeElement) {
       const observer = new MutationObserver(checkOverflow);

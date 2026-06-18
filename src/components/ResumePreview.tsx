@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Mail, Phone, MapPin, Linkedin, Github, ExternalLink } from 'lucide-react';
-import { ResumeData } from '../types/resume';
+import { ResumeData, Education, Experience, Project, Skill, Certification, CustomSection } from '../types/resume';
 
 interface ResumePreviewProps {
   data: ResumeData;
@@ -9,29 +9,76 @@ interface ResumePreviewProps {
   pageCount?: number;
 }
 
-/**
- * Resume Preview Component
- * 
- * Renders a professional-looking resume preview that can be exported to PDF.
- * Features:
- * - Responsive design with configurable font sizes
- * - Multi-page layout support with visual page breaks
- * - Clickable links for projects and social profiles
- * - Professional typography and spacing
- * - Print-optimized styling
- * 
- * @param data - Complete resume data object
- * @param fontSize - Base font size for scaling (default: 12px)
- * @param pageCount - Number of pages for layout calculation (default: 1)
- */
+type ResumeBlock = 
+  | { type: 'header' }
+  | { type: 'summary' }
+  | { type: 'skills' }
+  | { type: 'interests' }
+  | { type: 'education', item: Education }
+  | { type: 'experience', item: Experience }
+  | { type: 'project', item: Project }
+  | { type: 'certification', item: Certification }
+  | { type: 'customSection', item: CustomSection };
+
+const estimateBlockHeight = (block: ResumeBlock, data: ResumeData): number => {
+  switch (block.type) {
+    case 'header':
+      return data.profilePicture ? 140 : 110;
+    case 'summary':
+      return 40 + Math.max(30, Math.ceil((data.summary || '').length / 90) * 15);
+    case 'skills': {
+      const categoryCount = ['Technical Subjects', 'Programming Languages', 'Spoken Languages', 'Soft Skills', 'Frameworks', 'Dev Tools']
+        .filter(cat => data.skills.some(s => s.category === cat)).length;
+      return 35 + categoryCount * 22;
+    }
+    case 'interests':
+      return 40;
+    case 'education':
+      return 65 + Math.max(0, Math.ceil((block.item.description || '').length / 80) * 14);
+    case 'experience':
+      return 80 + Math.max(0, Math.ceil((block.item.description || '').length / 80) * 14);
+    case 'project':
+      return 70 + Math.max(0, Math.ceil((block.item.description || '').length / 80) * 14);
+    case 'certification':
+      return 55;
+    case 'customSection':
+      return 55 + Math.max(0, Math.ceil((block.item.content || '').length / 80) * 14);
+    default:
+      return 50;
+  }
+};
+
 export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
   ({ data, fontSize = 12, pageCount = 1 }, ref) => {
+    const containerRef = React.useRef<HTMLDivElement>(null);
+    const [scale, setScale] = React.useState(1);
+
+    React.useEffect(() => {
+      const checkScale = () => {
+        if (containerRef.current) {
+          const parentWidth = containerRef.current.getBoundingClientRect().width;
+          const targetWidth = 816; // 8.5in at 96 DPI
+          const padding = 32; // padding around page sheet
+          const newScale = Math.min(1, (parentWidth - padding) / targetWidth);
+          setScale(newScale);
+        }
+      };
+
+      checkScale();
+      window.addEventListener('resize', checkScale);
+      
+      let resizeObserver: ResizeObserver | null = null;
+      if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+        resizeObserver = new ResizeObserver(checkScale);
+        resizeObserver.observe(containerRef.current);
+      }
+
+      return () => {
+        window.removeEventListener('resize', checkScale);
+        if (resizeObserver) resizeObserver.disconnect();
+      };
+    }, []);
     
-    /**
-     * Format date string to readable format (MMM YYYY)
-     * @param dateString - ISO date string
-     * @returns Formatted date string
-     */
     const formatDate = (dateString: string) => {
       if (!dateString) return '';
       const date = new Date(dateString);
@@ -41,13 +88,6 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
       });
     };
 
-    /**
-     * Format date range with support for current positions
-     * @param startDate - Start date string
-     * @param endDate - End date string
-     * @param current - Whether position is current
-     * @returns Formatted date range string
-     */
     const formatDateRange = (startDate: string, endDate: string, current: boolean = false) => {
       const start = formatDate(startDate);
       if (current) {
@@ -60,310 +100,307 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
       return `${start} - ${end}`;
     };
 
-    /**
-     * Render formatted content with bullet point support
-     * Converts plain text with bullet characters to proper HTML lists
-     * @param content - Raw text content
-     * @returns Array of JSX elements
-     */
     const renderFormattedContent = (content: string) => {
+      if (!content) return [];
       return content.split('\n').map((line, index) => {
         const trimmedLine = line.trim();
         if (trimmedLine.startsWith('•') || trimmedLine.startsWith('-') || trimmedLine.startsWith('*')) {
-          return <li key={index} className="ml-3">{trimmedLine.substring(1).trim()}</li>;
+          return <li key={index} className="ml-3 list-disc">{trimmedLine.substring(1).trim()}</li>;
         }
         return trimmedLine ? <p key={index} className="mb-1">{trimmedLine}</p> : null;
       }).filter(Boolean);
     };
 
-    // Calculate dynamic styles based on font size for responsive typography
+    // Style adjustments
     const dynamicStyles = {
       fontSize: `${fontSize}px`,
       lineHeight: fontSize <= 10 ? '1.1' : fontSize <= 14 ? '1.3' : '1.4'
     };
 
-    // Scale header fonts relative to base font size
     const headerFontSize = Math.max(fontSize + 8, 18);
     const sectionHeaderFontSize = Math.max(fontSize + 2, 14);
 
-    // Calculate page dimensions for multi-page layout
-    const pageHeight = pageCount > 1 ? `${1056 * pageCount}px` : 'auto';
-    const minHeight = pageCount > 1 ? `${1056 * pageCount}px` : 'auto';
+    // 1. Gather all blocks to paginate
+    const blocks: ResumeBlock[] = [];
+    blocks.push({ type: 'header' });
+    if (data.summary) blocks.push({ type: 'summary' });
+    if (data.skills && data.skills.length > 0) blocks.push({ type: 'skills' });
 
-    /**
-     * Generate visual page break indicators for multi-page resumes
-     * Creates dashed lines to show where pages break
-     */
-    const renderPageBreaks = () => {
-      if (pageCount <= 1) return null;
-      
-      const pageBreaks = [];
-      for (let i = 1; i < pageCount; i++) {
-        pageBreaks.push(
-          <div
-            key={i}
-            className="absolute border-t-2 border-gray-400 border-dashed w-full pointer-events-none"
-            style={{
-              top: `${i * 1056 - 48}px`, // Account for card padding
-              left: 24,
-              right: 24,
-              zIndex: 5
-            }}
-          />
-        );
+    if (data.education) {
+      data.education.forEach(item => blocks.push({ type: 'education', item }));
+    }
+    if (data.experience) {
+      data.experience.forEach(item => blocks.push({ type: 'experience', item }));
+    }
+    if (data.projects) {
+      data.projects.forEach(item => blocks.push({ type: 'project', item }));
+    }
+    if (data.certifications) {
+      data.certifications.forEach(item => blocks.push({ type: 'certification', item }));
+    }
+    if (data.interests && data.interests.length > 0) {
+      blocks.push({ type: 'interests' });
+    }
+    if (data.customSections) {
+      data.customSections.forEach(item => blocks.push({ type: 'customSection', item }));
+    }
+
+    // 2. Distribute blocks across pages
+    const pages: ResumeBlock[][] = Array.from({ length: pageCount }, () => []);
+    let currentPageIndex = 0;
+    let currentPageHeight = 0;
+    const pageHeightLimit = 900; // Limit content within page boundaries (Letter is 1056px height)
+
+    for (const block of blocks) {
+      const height = estimateBlockHeight(block, data);
+      if (currentPageHeight + height > pageHeightLimit && currentPageIndex < pageCount - 1) {
+        currentPageIndex++;
+        currentPageHeight = 0;
       }
-      return pageBreaks;
+      pages[currentPageIndex].push(block);
+      currentPageHeight += height;
+    }
+
+    const isFirstOfTypeOnPage = (index: number, type: string, pageBlocks: ResumeBlock[]) => {
+      for (let k = 0; k < index; k++) {
+        if (pageBlocks[k].type === type) {
+          return false;
+        }
+      }
+      return true;
     };
 
-    return (
-      <Card 
-        className="p-6 max-w-4xl mx-auto bg-white text-black resume-preview border-2 border-gray-300 relative overflow-hidden" 
-        ref={ref} 
-        style={{
-          ...dynamicStyles,
-          height: pageHeight,
-          minHeight: minHeight,
-          pageBreakInside: pageCount > 1 ? 'auto' : 'avoid'
-        }}
-      >
-        {/* Page break visual indicators */}
-        {renderPageBreaks()}
-        
-        <div className="space-y-3 relative z-10">
-          
-          {/* Header Section - Name and Contact Information */}
-          <header className="text-center border-b border-gray-300 pb-3">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex-1">
-                {/* Candidate Name - Prominently displayed */}
-                <h1 
-                  className="font-bold text-gray-900 mb-4"
-                  style={{ fontSize: `${headerFontSize}px` }}
-                >
-                  {data.personalInfo.firstName} {data.personalInfo.lastName}
-                </h1>
-                
-                {/* Contact Information - Horizontally laid out */}
-                <div className="flex flex-wrap justify-center gap-3 text-gray-600">
-                  {data.personalInfo.email && (
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-3 w-3 flex-shrink-0" />
-                      <span className="text-xs">{data.personalInfo.email}</span>
-                    </div>
-                  )}
-                  {data.personalInfo.phone && (
-                    <div className="flex items-center gap-1">
-                      <Phone className="h-3 w-3 flex-shrink-0" />
-                      <span className="text-xs">{data.personalInfo.phone}</span>
-                    </div>
-                  )}
-                  {data.personalInfo.address && (
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="text-xs">{data.personalInfo.address}</span>
-                    </div>
-                  )}
-                  {data.personalInfo.linkedin && (
-                    <div className="flex items-center gap-1">
-                      <Linkedin className="h-3 w-3 flex-shrink-0" />
-                      <span className="text-xs">{data.personalInfo.linkedin}</span>
-                    </div>
-                  )}
-                  {data.personalInfo.github && (
-                    <div className="flex items-center gap-1">
-                      <Github className="h-3 w-3 flex-shrink-0" />
-                      <span className="text-xs">{data.personalInfo.github}</span>
-                    </div>
-                  )}
+    const renderBlock = (block: ResumeBlock, index: number, pageBlocks: ResumeBlock[]) => {
+      const showHeader = isFirstOfTypeOnPage(index, block.type, pageBlocks);
+      
+      switch (block.type) {
+        case 'header':
+          return (
+            <header key="header" className="text-center border-b border-gray-300 pb-3 mb-3">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h1 
+                    className="font-bold text-gray-900 mb-2"
+                    style={{ fontSize: `${headerFontSize}px` }}
+                  >
+                    {data.personalInfo.firstName} {data.personalInfo.lastName}
+                  </h1>
+                  <div className="flex flex-wrap justify-center gap-3 text-gray-600">
+                    {data.personalInfo.email && (
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs">{data.personalInfo.email}</span>
+                      </div>
+                    )}
+                    {data.personalInfo.phone && (
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs">{data.personalInfo.phone}</span>
+                      </div>
+                    )}
+                    {data.personalInfo.address && (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs">{data.personalInfo.address}</span>
+                      </div>
+                    )}
+                    {data.personalInfo.linkedin && (
+                      <div className="flex items-center gap-1">
+                        <Linkedin className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs">{data.personalInfo.linkedin}</span>
+                      </div>
+                    )}
+                    {data.personalInfo.github && (
+                      <div className="flex items-center gap-1">
+                        <Github className="h-3 w-3 flex-shrink-0" />
+                        <span className="text-xs">{data.personalInfo.github}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
+                {data.profilePicture && (
+                  <div className="ml-3 flex-shrink-0">
+                    <img 
+                      src={data.profilePicture} 
+                      alt="Profile" 
+                      className="w-16 h-16 rounded-full object-cover border border-gray-200"
+                    />
+                  </div>
+                )}
               </div>
-              
-              {/* Profile Picture - Optional, positioned to the right */}
-              {data.profilePicture && (
-                <div className="ml-3">
-                  <img 
-                    src={data.profilePicture} 
-                    alt="Profile" 
-                    className="w-16 h-16 rounded-full object-cover border border-gray-200"
-                  />
-                </div>
+            </header>
+          );
+          
+        case 'summary':
+          return (
+            <section key="summary" className="mb-3">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-1 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  Professional Summary
+                </h2>
               )}
-            </div>
-          </header>
-
-          {/* Professional Summary Section */}
-          {data.summary && (
-            <section style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-1 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                Professional Summary
-              </h2>
               <p className="text-gray-700 leading-tight">{data.summary}</p>
             </section>
-          )}
-
-          {/* Education Section */}
-          {data.education.length > 0 && (
-            <section style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                Education
-              </h2>
-              <div className="space-y-2">
-                {data.education.map((edu) => (
-                  <div key={edu.id} style={{ pageBreakInside: 'avoid' }}>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-sm">{edu.institution}</h3>
-                        <p className="text-gray-700 text-xs">{edu.degree}</p>
-                        <p className="text-gray-600 text-xs">{edu.fieldOfStudy}</p>
-                      </div>
-                      <div className="text-right text-gray-600 text-xs">
-                        <p>{formatDateRange(edu.startDate, edu.endDate)}</p>
-                        {edu.cgpa && <p>CGPA: {edu.cgpa}</p>}
-                      </div>
-                    </div>
-                    {edu.description && (
-                      <p className="text-gray-700 text-xs mt-1">{edu.description}</p>
-                    )}
-                  </div>
-                ))}
+          );
+          
+        case 'education': {
+          const edu = block.item;
+          return (
+            <section key={`edu-${edu.id}`} className="mb-2">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  Education
+                </h2>
+              )}
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-bold text-gray-900 text-sm">{edu.institution}</h3>
+                  <p className="text-gray-700 text-xs">{edu.degree}</p>
+                  <p className="text-gray-600 text-xs">{edu.fieldOfStudy}</p>
+                </div>
+                <div className="text-right text-gray-600 text-xs flex-shrink-0">
+                  <p>{formatDateRange(edu.startDate, edu.endDate)}</p>
+                  {edu.cgpa && <p>CGPA: {edu.cgpa}</p>}
+                </div>
               </div>
+              {edu.description && (
+                <p className="text-gray-700 text-xs mt-1">{edu.description}</p>
+              )}
             </section>
-          )}
-
-          {/* Work Experience Section */}
-          {data.experience.length > 0 && (
-            <section style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                Work Experience
-              </h2>
-              <div className="space-y-2">
-                {data.experience.map((exp) => (
-                  <div key={exp.id} style={{ pageBreakInside: 'avoid' }}>
-                    <div className="flex justify-between items-start mb-1">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-900 text-sm">{exp.position}</h3>
-                          <div className="flex gap-1">
-                            {exp.link && (
-                              <a 
-                                href={exp.link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 transition-colors"
-                                title="View company/project link"
-                              >
-                                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                              </a>
-                            )}
-                            {exp.github && (
-                              <a 
-                                href={exp.github} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-gray-600 hover:text-gray-800 transition-colors"
-                                title="View source code"
-                              >
-                                <Github className="h-3 w-3 flex-shrink-0" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                        <p className="font-bold text-gray-900 text-xs">{exp.company}</p>
-                      </div>
-                      <div className="text-right text-gray-600 text-xs">
-                        <p>{formatDateRange(exp.startDate, exp.endDate, exp.current)}</p>
-                        {exp.location && <p>{exp.location}</p>}
-                      </div>
+          );
+        }
+        
+        case 'experience': {
+          const exp = block.item;
+          return (
+            <section key={`exp-${exp.id}`} className="mb-2">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  Work Experience
+                </h2>
+              )}
+              <div className="flex justify-between items-start mb-1">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-gray-900 text-sm">{exp.position}</h3>
+                    <div className="flex gap-1">
+                      {exp.link && (
+                        <a 
+                          href={exp.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                          title="View company/project link"
+                        >
+                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        </a>
+                      )}
+                      {exp.github && (
+                        <a 
+                          href={exp.github} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-gray-600 hover:text-gray-800 transition-colors"
+                          title="View source code"
+                        >
+                          <Github className="h-3 w-3 flex-shrink-0" />
+                        </a>
+                      )}
                     </div>
-                    {exp.description && (
-                      <div className="text-gray-700 whitespace-pre-line text-xs leading-tight">
-                        {exp.description}
-                      </div>
-                    )}
                   </div>
-                ))}
+                  <p className="font-bold text-gray-900 text-xs">{exp.company}</p>
+                </div>
+                <div className="text-right text-gray-600 text-xs flex-shrink-0">
+                  <p>{formatDateRange(exp.startDate, exp.endDate, exp.current)}</p>
+                  {exp.location && <p>{exp.location}</p>}
+                </div>
               </div>
+              {exp.description && (
+                <div className="text-gray-700 whitespace-pre-line text-xs leading-tight">
+                  {exp.description}
+                </div>
+              )}
             </section>
-          )}
-
-          {/* Projects Section */}
-          {data.projects.length > 0 && (
-            <section style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                Projects
-              </h2>
-              <div className="space-y-2">
-                {data.projects.map((project) => (
-                  <div key={project.id} style={{ pageBreakInside: 'avoid' }}>
-                    <div className="flex justify-between items-start mb-1">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-gray-900 text-sm">{project.name}</h3>
-                          <div className="flex gap-1">
-                            {project.link && (
-                              <a 
-                                href={project.link} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 transition-colors"
-                                title="View live project"
-                              >
-                                <ExternalLink className="h-3 w-3 flex-shrink-0" />
-                              </a>
-                            )}
-                            {project.github && (
-                              <a 
-                                href={project.github} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-gray-600 hover:text-gray-800 transition-colors"
-                                title="View source code"
-                              >
-                                <Github className="h-3 w-3 flex-shrink-0" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                        {project.technologies.length > 0 && (
-                          <p className="text-gray-600 italic text-xs">
-                            {project.technologies.join(', ')}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right text-gray-600 text-xs">
-                        <p>{formatDateRange(project.startDate, project.endDate)}</p>
-                      </div>
+          );
+        }
+        
+        case 'project': {
+          const project = block.item;
+          return (
+            <section key={`proj-${project.id}`} className="mb-2">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  Projects
+                </h2>
+              )}
+              <div className="flex justify-between items-start mb-1">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-gray-900 text-sm">{project.name}</h3>
+                    <div className="flex gap-1">
+                      {project.link && (
+                        <a 
+                          href={project.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 transition-colors"
+                          title="View live project"
+                        >
+                          <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                        </a>
+                      )}
+                      {project.github && (
+                        <a 
+                          href={project.github} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-gray-600 hover:text-gray-800 transition-colors"
+                          title="View source code"
+                        >
+                          <Github className="h-3 w-3 flex-shrink-0" />
+                        </a>
+                      )}
                     </div>
-                    <p className="text-gray-700 text-xs">{project.description}</p>
                   </div>
-                ))}
+                  {project.technologies.length > 0 && (
+                    <p className="text-gray-600 italic text-xs">
+                      {project.technologies.join(', ')}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right text-gray-600 text-xs flex-shrink-0">
+                  <p>{formatDateRange(project.startDate, project.endDate)}</p>
+                </div>
               </div>
+              <p className="text-gray-700 text-xs">{project.description}</p>
             </section>
-          )}
-
-          {/* Skills Section - Organized by categories */}
-          {data.skills.length > 0 && (
-            <section style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                Skills
-              </h2>
+          );
+        }
+        
+        case 'skills':
+          return (
+            <section key="skills" className="mb-2">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  Skills
+                </h2>
+              )}
               <div className="space-y-1">
-                {/* Iterate through predefined skill categories */}
                 {['Technical Subjects', 'Programming Languages', 'Spoken Languages', 'Soft Skills', 'Frameworks', 'Dev Tools'].map((category) => {
                   const categorySkills = data.skills.filter(skill => skill.category === category);
                   if (categorySkills.length === 0) return null;
@@ -379,65 +416,69 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                 })}
               </div>
             </section>
-          )}
-
-          {/* Certifications and Awards Section */}
-          {data.certifications.length > 0 && (
-            <section style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                Certifications and Awards
-              </h2>
-              <div className="space-y-1">
-                {data.certifications.map((cert) => (
-                  <div key={cert.id} className="flex justify-between items-start text-xs" style={{ pageBreakInside: 'avoid' }}>
-                    <div>
-                      <h3 className="font-bold text-gray-900">{cert.name}</h3>
-                      <p className="text-gray-700">{cert.issuer}</p>
-                      {cert.credentialId && (
-                        <p className="text-gray-600">ID: {cert.credentialId}</p>
-                      )}
-                    </div>
-                    <div className="text-right text-gray-600">
-                      <p>{formatDate(cert.date)}</p>
-                      {cert.expiryDate && (
-                        <p>Expires: {formatDate(cert.expiryDate)}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+          );
+          
+        case 'certification': {
+          const cert = block.item;
+          return (
+            <section key={`cert-${cert.id}`} className="mb-2">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  Certifications and Awards
+                </h2>
+              )}
+              <div className="flex justify-between items-start text-xs">
+                <div>
+                  <h3 className="font-bold text-gray-900">{cert.name}</h3>
+                  <p className="text-gray-700">{cert.issuer}</p>
+                  {cert.credentialId && (
+                    <p className="text-gray-600">ID: {cert.credentialId}</p>
+                  )}
+                </div>
+                <div className="text-right text-gray-600 flex-shrink-0">
+                  <p>{formatDate(cert.date)}</p>
+                  {cert.expiryDate && (
+                    <p>Expires: {formatDate(cert.expiryDate)}</p>
+                  )}
+                </div>
               </div>
             </section>
-          )}
-
-          {/* Interests and Hobbies Section */}
-          {data.interests.length > 0 && (
-            <section style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                Interests & Hobbies
-              </h2>
+          );
+        }
+        
+        case 'interests':
+          return (
+            <section key="interests" className="mb-2">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  Interests & Hobbies
+                </h2>
+              )}
               <p className="text-gray-700 text-xs">
                 {data.interests.map(interest => interest.name).join(', ')}
               </p>
             </section>
-          )}
-
-          {/* Custom Sections - User-defined sections */}
-          {data.customSections && data.customSections.map((section) => (
-            <section key={section.id} style={{ pageBreakInside: 'avoid' }}>
-              <h2 
-                className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                style={{ fontSize: `${sectionHeaderFontSize}px` }}
-              >
-                {section.title}
-              </h2>
+          );
+          
+        case 'customSection': {
+          const section = block.item;
+          return (
+            <section key={`custom-${section.id}`} className="mb-2">
+              {showHeader && (
+                <h2 
+                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
+                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
+                >
+                  {section.title}
+                </h2>
+              )}
               <div className="text-gray-700 text-xs">
-                {/* Handle both list and paragraph content formats */}
                 {section.content.includes('•') || section.content.includes('-') ? (
                   <ul className="space-y-1">
                     {renderFormattedContent(section.content)}
@@ -449,9 +490,61 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                 )}
               </div>
             </section>
-          ))}
+          );
+        }
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <div 
+        ref={containerRef}
+        className="bg-gray-100 dark:bg-zinc-900 p-4 rounded-xl border max-h-[calc(100vh-12rem)] overflow-y-auto w-full overflow-x-hidden flex flex-col items-center"
+      >
+        <div
+          style={{
+            width: '100%',
+            height: `${(1056 * pageCount + (pageCount - 1) * 24) * scale}px`,
+            display: 'flex',
+            justifyContent: 'center',
+            overflow: 'hidden'
+          }}
+        >
+          <div 
+            className="resume-preview flex flex-col gap-6 bg-transparent origin-top" 
+            ref={ref}
+            style={{
+              transform: `scale(${scale})`,
+              width: '816px' // 8.5in at 96 DPI
+            }}
+          >
+            {pages.map((pageBlocks, index) => (
+              <Card 
+                key={index}
+                className="p-8 mx-auto bg-white text-black relative shadow-lg border border-gray-300 pdf-page overflow-hidden flex flex-col justify-start" 
+                style={{
+                  ...dynamicStyles,
+                  width: '8.5in',
+                  height: '11in',
+                  minHeight: '11in',
+                  maxHeight: '11in',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <div className="space-y-3 relative z-10 w-full flex-1">
+                  {pageBlocks.map((block, bIdx) => renderBlock(block, bIdx, pageBlocks))}
+                </div>
+                
+                {/* Optional page number footer for display */}
+                <div className="absolute bottom-4 right-8 text-[10px] text-gray-400 select-none print:hidden">
+                  Page {index + 1} of {pageCount}
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
-      </Card>
+      </div>
     );
   }
 );

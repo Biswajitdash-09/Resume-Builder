@@ -27,13 +27,12 @@ export const exportToPDF = async (data: ResumeData) => {
     throw new Error('Resume preview element not found');
   }
 
-  // PDF generation configuration
   const opt = {
-    // Page margins (top, right, bottom, left) in inches
-    margin: [0.5, 0.5, 0.5, 0.5],
+    // Page margins are handled by the .pdf-page card padding directly
+    margin: 0,
     
     // Dynamic filename based on user's name
-    filename: `${data.personalInfo.firstName}_${data.personalInfo.lastName}_Resume.pdf`,
+    filename: `${data.personalInfo.firstName || 'Resume'}_${data.personalInfo.lastName || 'Data'}_Resume.pdf`,
     
     // Image quality settings
     image: { 
@@ -56,11 +55,21 @@ export const exportToPDF = async (data: ResumeData) => {
       format: 'letter', // Standard US letter size (8.5" x 11")
       orientation: 'portrait', // Vertical orientation
       compress: true // Enable PDF compression
-    }
+    },
+    
+    // Break page cleanly at each pdf-page sheet element
+    pagebreak: { mode: ['before', 'avoid-all'], selector: '.pdf-page' }
   };
+
+  const oldTransform = element.style.transform;
+  const oldWidth = element.style.width;
 
   try {
     console.log('Starting PDF generation...');
+    
+    // Temporarily reset scaling styles for 100% full scale capture
+    element.style.transform = 'none';
+    element.style.width = '816px';
     
     // Generate and save the PDF
     await html2pdf().set(opt).from(element).save();
@@ -69,5 +78,9 @@ export const exportToPDF = async (data: ResumeData) => {
   } catch (error) {
     console.error('Error generating PDF:', error);
     throw error; // Re-throw for caller to handle
+  } finally {
+    // Restore scaling
+    element.style.transform = oldTransform;
+    element.style.width = oldWidth;
   }
 };
