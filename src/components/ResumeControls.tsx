@@ -3,19 +3,23 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ZoomIn, ZoomOut, Upload, FileText } from 'lucide-react';
+import { ZoomIn, ZoomOut, Upload, FileText, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ResumeData } from '../types/resume';
+import { extractTextFromPDF, extractTextFromDOCX, parseResumeText } from '../utils/resumeParser';
 
 interface ResumeControlsProps {
   fontSize: number;
   onFontSizeChange: (size: number) => void;
   onImportResume: (data: any) => void;
+  resumeData: ResumeData;
 }
 
 export const ResumeControls: React.FC<ResumeControlsProps> = ({
   fontSize,
   onFontSizeChange,
-  onImportResume
+  onImportResume,
+  resumeData
 }) => {
   const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
@@ -36,75 +40,79 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
 
     setIsImporting(true);
     try {
-      // For now, we'll create a mock parser that demonstrates the concept
-      // In a real implementation, you'd use a PDF parsing library
-      const mockResumeData = {
-        personalInfo: {
-          firstName: 'Biswajit',
-          lastName: 'Dash',
-          email: 'biswajitdash@gmail.com',
-          phone: '+919348470094',
-          linkedin: 'https://www.linkedin.com/in/biswajitdash09',
-          github: 'https://github.com/Biswajitdash-09',
-          address: 'Berhampur, Odisha'
-        },
-        summary: 'Experienced web developer with expertise in modern frontend technologies and responsive design.',
-        education: [
-          {
-            id: '1',
-            institution: 'Balasore College of Engineering and Technology',
-            degree: 'Bachelor of Technology in Information Technology',
-            fieldOfStudy: 'Information Technology',
-            startDate: '2022-09',
-            endDate: '2026-03',
-            gpa: '8.5',
-            description: 'Berhampur, Odisha'
+      const fileName = file.name.toLowerCase();
+      
+      if (fileName.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = JSON.parse(e.target?.result as string);
+            onImportResume(data);
+            toast({
+              title: "Resume Data Imported",
+              description: "JSON configuration loaded successfully."
+            });
+          } catch (err) {
+            console.error(err);
+            toast({
+              title: "Import Failed",
+              description: "Invalid JSON format in the uploaded file.",
+              variant: "destructive"
+            });
           }
-        ],
-        experience: [
-          {
-            id: '1',
-            company: 'Octatech PVT. LTD.',
-            position: 'Frontend Web Development Intern',
-            startDate: '2024-05',
-            endDate: '2024-06',
-            current: false,
-            location: 'Bhubaneswar, Odisha',
-            description: '• Developed a dynamic and responsive landing page for a website using modern frontend technologies.\n• Implemented interactive UI elements and optimized the design for improved user engagement and experience.\n• Enhanced CSS skills through HTML/CSS best practices and design optimizations.\n• Enhanced page performance through excellent coding practices and design optimizations.\n• Implemented best practices for on-page SEO, enhancing the website\'s visibility and search engine ranking.'
+        };
+        reader.readAsText(file);
+      } else if (fileName.endsWith('.pdf')) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            const text = await extractTextFromPDF(arrayBuffer);
+            const parsedData = parseResumeText(text);
+            onImportResume(parsedData);
+            toast({
+              title: "PDF Resume Parsed",
+              description: "Extracted information from PDF successfully!"
+            });
+          } catch (err) {
+            console.error(err);
+            toast({
+              title: "PDF Parsing Failed",
+              description: "Could not extract data from the PDF file. Please ensure the PDF has selectable text.",
+              variant: "destructive"
+            });
           }
-        ],
-        skills: [
-          { id: '1', name: 'JavaScript', level: 'Advanced', category: 'Technical' },
-          { id: '2', name: 'React.js', level: 'Advanced', category: 'Technical' },
-          { id: '3', name: 'HTML/CSS', level: 'Expert', category: 'Technical' },
-          { id: '4', name: 'Node.js', level: 'Intermediate', category: 'Technical' }
-        ],
-        programmingLanguages: [
-          { id: '1', name: 'C/C++', level: 'Advanced' },
-          { id: '2', name: 'Java', level: 'Intermediate' },
-          { id: '3', name: 'Python', level: 'Intermediate' },
-          { id: '4', name: 'JavaScript', level: 'Advanced' },
-          { id: '5', name: 'TypeScript', level: 'Intermediate' }
-        ],
-        projects: [
-          {
-            id: '1',
-            name: 'eCommerce website (Practice Project)',
-            description: 'Built a fully responsive website using only HTML, CSS and JavaScript, ensuring compatibility across different devices and screen sizes. Created a user-friendly navigation menu, allowing seamless access to different sections of the website.',
-            technologies: ['HTML', 'CSS', 'JavaScript'],
-            startDate: '2025-03',
-            endDate: '2025-03',
-            link: '',
-            github: ''
+        };
+        reader.readAsArrayBuffer(file);
+      } else if (fileName.endsWith('.docx') || fileName.endsWith('.doc')) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            const text = await extractTextFromDOCX(arrayBuffer);
+            const parsedData = parseResumeText(text);
+            onImportResume(parsedData);
+            toast({
+              title: "Word Resume Parsed",
+              description: "Extracted information from Word document successfully!"
+            });
+          } catch (err) {
+            console.error(err);
+            toast({
+              title: "Word Parsing Failed",
+              description: "Could not extract data from the Word file.",
+              variant: "destructive"
+            });
           }
-        ]
-      };
-
-      onImportResume(mockResumeData);
-      toast({
-        title: "Resume Imported",
-        description: "Resume data has been successfully imported!"
-      });
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        toast({
+          title: "Unsupported File",
+          description: "Please upload a .pdf, .docx, .doc, or .json file.",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error importing resume:', error);
       toast({
@@ -116,6 +124,34 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
       setIsImporting(false);
       // Reset the input
       event.target.value = '';
+    }
+  };
+
+  const handleExportJSON = () => {
+    try {
+      const dataStr = JSON.stringify(resumeData, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const firstName = resumeData.personalInfo?.firstName || 'Resume';
+      const lastName = resumeData.personalInfo?.lastName || 'Data';
+      const exportFileDefaultName = `${firstName}_${lastName}_resume_data.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      
+      toast({
+        title: "Data Exported",
+        description: "Your resume data JSON has been downloaded successfully!"
+      });
+    } catch (error) {
+      console.error('Error exporting JSON:', error);
+      toast({
+        title: "Export Failed",
+        description: "Could not export resume data.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -171,10 +207,23 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
           <Input
             id="resume-upload"
             type="file"
-            accept=".pdf,.doc,.docx"
+            accept=".pdf,.doc,.docx,.json"
             onChange={handleFileUpload}
             className="hidden"
           />
+        </div>
+
+        {/* Resume Export JSON */}
+        <div className="flex items-center justify-center sm:justify-start">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportJSON}
+            className="h-8 px-3"
+          >
+            <Download className="h-3 w-3 mr-2" />
+            <span className="text-xs sm:text-sm">Export Data</span>
+          </Button>
         </div>
       </div>
     </Card>

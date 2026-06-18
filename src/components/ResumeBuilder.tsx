@@ -265,6 +265,7 @@ export const ResumeBuilder = () => {
             fontSize={fontSize}
             onFontSizeChange={setFontSize}
             onImportResume={handleImportResume}
+            resumeData={resumeData}
           />
 
           {/* Two-column layout: Forms on left, Preview on right */}
