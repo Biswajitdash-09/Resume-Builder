@@ -347,8 +347,10 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     const isDegree = /bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\.|diploma|degree|hsc|ssc|cbse|icse/i.test(line);
     const dateRange = extractDateRange(line);
     
+    const wordCount = line.split(/\s+/).length;
+    const isShortLine = wordCount > 0 && wordCount < 6;
     const hasDegree = currentGroup.some(l => /bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\.|diploma|degree/i.test(l));
-    const shouldStartNew = isInst || (isDegree && hasDegree) || (dateRange.start && currentGroup.length > 0 && currentGroup.some(l => extractDateRange(l).start));
+    const shouldStartNew = (isShortLine && (isInst || (isDegree && hasDegree))) || (dateRange.start && currentGroup.length > 0 && currentGroup.some(l => extractDateRange(l).start));
     
     if (shouldStartNew && currentGroup.length > 0) {
       eduGroups.push(currentGroup);
@@ -439,7 +441,9 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     const hasPositionKeyword = /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator/i.test(line);
     const hasCompanyKeyword = /pvt|ltd|inc|llc|corp|co\.|company|labs|technologies|solutions/i.test(line);
     
-    const shouldStartNew = dateRange.start || hasPositionKeyword || (hasCompanyKeyword && currentExpGroup.length > 0);
+    const wordCount = line.split(/\s+/).length;
+    const isShortLine = wordCount > 0 && wordCount < 6;
+    const shouldStartNew = dateRange.start || (isShortLine && (hasPositionKeyword || (hasCompanyKeyword && currentExpGroup.length > 0)));
     
     if (shouldStartNew && currentExpGroup.length > 0) {
       expGroups.push(currentExpGroup);
