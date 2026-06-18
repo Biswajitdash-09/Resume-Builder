@@ -40,7 +40,8 @@ export const ResumeBuilder = () => {
   
   // Resume Configuration
   const [fontSize, setFontSize] = useState(12); // Font size for PDF export
-  const [pageCount, setPageCount] = useState(1); // Number of pages for layout
+  const [pageCount, setPageCount] = useState(1); // Target page count
+  const [actualPageCount, setActualPageCount] = useState(1); // Actual calculated page count
   
   // Main resume data state - contains all user input
   const [resumeData, setResumeData] = useState<ResumeData>({
@@ -68,39 +69,7 @@ export const ResumeBuilder = () => {
   
   const { toast } = useToast();
 
-  /**
-   * Load saved data from localStorage on component mount
-   * Ensures backward compatibility with existing user data
-   */
-  useEffect(() => {
-    const savedData = localStorage.getItem('resumeData');
-    const savedFontSize = localStorage.getItem('resumeFontSize');
-    const savedPageCount = localStorage.getItem('resumePageCount');
-    
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        // Ensure backward compatibility with existing data structure
-        setResumeData({
-          ...parsed,
-          profilePicture: parsed.profilePicture || '',
-          programmingLanguages: parsed.programmingLanguages || [],
-          customSections: parsed.customSections || []
-        });
-      } catch (error) {
-        console.error('Error loading saved data:', error);
-      }
-    }
 
-    // Restore user preferences
-    if (savedFontSize) {
-      setFontSize(parseInt(savedFontSize, 10));
-    }
-
-    if (savedPageCount) {
-      setPageCount(parseInt(savedPageCount, 10));
-    }
-  }, []);
 
   /**
    * Auto-save functionality - saves data every 10 seconds
@@ -326,11 +295,12 @@ export const ResumeBuilder = () => {
             </div>
 
             {/* Preview Section - Live resume preview */}
-            <div className={`lg:sticky lg:top-20 ${showPreview ? 'block' : 'hidden'} lg:block`}>
+            <div className={`lg:sticky lg:top-20 self-start ${showPreview ? 'block' : 'hidden'} lg:block`}>
               {/* Page overflow warning for multi-page resumes */}
               <PageOverflowWarning 
                 onPageCountChange={setPageCount}
-                currentPageCount={pageCount}
+                targetPageCount={pageCount}
+                actualPageCount={actualPageCount}
               />
               
               {/* Live resume preview */}
@@ -338,6 +308,7 @@ export const ResumeBuilder = () => {
                 data={resumeData} 
                 fontSize={fontSize} 
                 pageCount={pageCount}
+                onPageCountCalculated={setActualPageCount}
               />
             </div>
           </div>

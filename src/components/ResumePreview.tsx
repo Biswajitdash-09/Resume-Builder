@@ -7,6 +7,7 @@ interface ResumePreviewProps {
   data: ResumeData;
   fontSize?: number;
   pageCount?: number;
+  onPageCountCalculated?: (pageCount: number) => void;
 }
 
 type ResumeBlock = 
@@ -23,33 +24,96 @@ type ResumeBlock =
 const estimateBlockHeight = (block: ResumeBlock, data: ResumeData): number => {
   switch (block.type) {
     case 'header':
-      return data.profilePicture ? 140 : 110;
-    case 'summary':
-      return 40 + Math.max(30, Math.ceil((data.summary || '').length / 90) * 15);
-    case 'skills': {
-      const categoryCount = ['Technical Subjects', 'Programming Languages', 'Spoken Languages', 'Soft Skills', 'Frameworks', 'Dev Tools']
-        .filter(cat => data.skills.some(s => s.category === cat)).length;
-      return 35 + categoryCount * 22;
+      return data.profilePicture ? 145 : 115;
+    case 'summary': {
+      const text = data.summary || '';
+      const lines = Math.max(1, Math.ceil(text.length / 85));
+      return 35 + lines * 15;
     }
-    case 'interests':
-      return 40;
-    case 'education':
-      return 65 + Math.max(0, Math.ceil((block.item.description || '').length / 80) * 14);
-    case 'experience':
-      return 80 + Math.max(0, Math.ceil((block.item.description || '').length / 80) * 14);
-    case 'project':
-      return 70 + Math.max(0, Math.ceil((block.item.description || '').length / 80) * 14);
+    case 'skills': {
+      let height = 35;
+      const categories = ['Technical Subjects', 'Programming Languages', 'Spoken Languages', 'Soft Skills', 'Frameworks', 'Dev Tools'];
+      categories.forEach(category => {
+        const categorySkills = data.skills.filter(s => s.category === category);
+        if (categorySkills.length > 0) {
+          const text = `${category}: ${categorySkills.map(s => s.name).join(', ')}`;
+          const lines = Math.max(1, Math.ceil(text.length / 85));
+          height += lines * 16 + 4;
+        }
+      });
+      return height;
+    }
+    case 'interests': {
+      const text = data.interests.map(interest => interest.name).join(', ');
+      const lines = Math.max(1, Math.ceil(text.length / 85));
+      return 35 + lines * 15;
+    }
+    case 'education': {
+      const edu = block.item;
+      let textHeight = 50;
+      if (edu.description) {
+        const lines = edu.description.split('\n');
+        let linesCount = 0;
+        lines.forEach(line => {
+          linesCount += Math.max(1, Math.ceil(line.length / 80));
+        });
+        textHeight += linesCount * 14;
+      }
+      return textHeight;
+    }
+    case 'experience': {
+      const exp = block.item;
+      let textHeight = 70;
+      if (exp.description) {
+        const lines = exp.description.split('\n');
+        let linesCount = 0;
+        lines.forEach(line => {
+          linesCount += Math.max(1, Math.ceil(line.length / 80));
+        });
+        textHeight += linesCount * 14;
+      }
+      return textHeight;
+    }
+    case 'project': {
+      const proj = block.item;
+      let textHeight = 60;
+      if (proj.description) {
+        const lines = proj.description.split('\n');
+        let linesCount = 0;
+        lines.forEach(line => {
+          linesCount += Math.max(1, Math.ceil(line.length / 80));
+        });
+        textHeight += linesCount * 14;
+      }
+      if (proj.technologies && proj.technologies.length > 0) {
+        const techLength = proj.technologies.join(', ').length;
+        const techLines = Math.max(1, Math.ceil(techLength / 80));
+        textHeight += techLines * 14;
+      }
+      return textHeight;
+    }
     case 'certification':
       return 55;
-    case 'customSection':
-      return 55 + Math.max(0, Math.ceil((block.item.content || '').length / 80) * 14);
+    case 'customSection': {
+      const section = block.item;
+      let textHeight = 45;
+      if (section.content) {
+        const lines = section.content.split('\n');
+        let linesCount = 0;
+        lines.forEach(line => {
+          linesCount += Math.max(1, Math.ceil(line.length / 80));
+        });
+        textHeight += linesCount * 14;
+      }
+      return textHeight;
+    }
     default:
       return 50;
   }
 };
 
 export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
-  ({ data, fontSize = 12, pageCount = 1 }, ref) => {
+  ({ data, fontSize = 12, pageCount = 1, onPageCountCalculated }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [scale, setScale] = React.useState(1);
 
@@ -145,21 +209,34 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
       data.customSections.forEach(item => blocks.push({ type: 'customSection', item }));
     }
 
-    // 2. Distribute blocks across pages
-    const pages: ResumeBlock[][] = Array.from({ length: pageCount }, () => []);
-    let currentPageIndex = 0;
+    // 2. Distribute blocks across pages dynamically
+    const pages: ResumeBlock[][] = [];
+    let currentPageBlocks: ResumeBlock[] = [];
     let currentPageHeight = 0;
     const pageHeightLimit = 900; // Limit content within page boundaries (Letter is 1056px height)
 
     for (const block of blocks) {
       const height = estimateBlockHeight(block, data);
-      if (currentPageHeight + height > pageHeightLimit && currentPageIndex < pageCount - 1) {
-        currentPageIndex++;
+      if (currentPageHeight + height > pageHeightLimit && currentPageBlocks.length > 0) {
+        pages.push(currentPageBlocks);
+        currentPageBlocks = [];
         currentPageHeight = 0;
       }
-      pages[currentPageIndex].push(block);
+      currentPageBlocks.push(block);
       currentPageHeight += height;
     }
+    if (currentPageBlocks.length > 0) {
+      pages.push(currentPageBlocks);
+    }
+    if (pages.length === 0) {
+      pages.push([]);
+    }
+
+    const actualPageCount = pages.length;
+
+    React.useEffect(() => {
+      onPageCountCalculated?.(actualPageCount);
+    }, [actualPageCount, onPageCountCalculated]);
 
     const isFirstOfTypeOnPage = (index: number, type: string, pageBlocks: ResumeBlock[]) => {
       for (let k = 0; k < index; k++) {
@@ -500,12 +577,12 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
     return (
       <div 
         ref={containerRef}
-        className="bg-gray-100 dark:bg-zinc-900 p-4 rounded-xl border max-h-[calc(100vh-12rem)] overflow-y-auto w-full overflow-x-hidden flex flex-col items-center"
+        className="bg-gray-100 dark:bg-zinc-900 p-4 rounded-xl border preview-scroll-container overflow-y-auto w-full overflow-x-hidden block"
       >
         <div
           style={{
             width: '100%',
-            height: `${(1056 * pageCount + (pageCount - 1) * 24) * scale}px`,
+            height: `${(1056 * actualPageCount + (actualPageCount - 1) * 24) * scale}px`,
             display: 'flex',
             justifyContent: 'center',
             overflow: 'hidden'
@@ -538,7 +615,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                 
                 {/* Optional page number footer for display */}
                 <div className="absolute bottom-4 right-8 text-[10px] text-gray-400 select-none print:hidden">
-                  Page {index + 1} of {pageCount}
+                  Page {index + 1} of {actualPageCount}
                 </div>
               </Card>
             ))}

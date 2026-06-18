@@ -64,8 +64,26 @@ export const exportToPDF = async (data: ResumeData) => {
   const oldTransform = element.style.transform;
   const oldWidth = element.style.width;
 
+  // Append a temporary style tag to format elements for printing
+  const printStyle = document.createElement('style');
+  printStyle.id = 'pdf-print-temp-style';
+  printStyle.innerHTML = `
+    .resume-preview {
+      gap: 0px !important;
+    }
+    .pdf-page {
+      border: none !important;
+      box-shadow: none !important;
+      margin: 0 auto !important;
+      height: 10.95in !important;
+      min-height: 10.95in !important;
+      max-height: 10.95in !important;
+    }
+  `;
+
   try {
     console.log('Starting PDF generation...');
+    document.head.appendChild(printStyle);
     
     // Temporarily reset scaling styles for 100% full scale capture
     element.style.transform = 'none';
@@ -79,6 +97,12 @@ export const exportToPDF = async (data: ResumeData) => {
     console.error('Error generating PDF:', error);
     throw error; // Re-throw for caller to handle
   } finally {
+    // Clean up temporary styles
+    const styleTag = document.getElementById('pdf-print-temp-style');
+    if (styleTag) {
+      styleTag.remove();
+    }
+    
     // Restore scaling
     element.style.transform = oldTransform;
     element.style.width = oldWidth;

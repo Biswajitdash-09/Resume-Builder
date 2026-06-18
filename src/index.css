@@ -103,3 +103,9 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@media (min-width: 1024px) {
+  .preview-scroll-container {
+    max-height: calc(100vh - 12rem);
+  }
+}

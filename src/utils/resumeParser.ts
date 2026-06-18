@@ -4,6 +4,47 @@ const splitLineIntoParts = (line: string): string[] => {
   return line.split(/\||—|--|\s{2,}/).map(p => p.trim()).filter(p => p.length > 0);
 };
 
+const cleanAndDeduplicateLines = (lines: string[]): string[] => {
+  const cleaned: string[] = [];
+  const normalizedLines = lines
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  for (let i = 0; i < normalizedLines.length; i++) {
+    const current = normalizedLines[i];
+    const cleanCurrent = current.replace(/^[-•*+]\s*/, '').trim().toLowerCase();
+    
+    // Check if this line is a substring of any OTHER line in the list
+    let isSubstring = false;
+    for (let j = 0; j < normalizedLines.length; j++) {
+      if (i === j) continue;
+      const other = normalizedLines[j];
+      const cleanOther = other.replace(/^[-•*+]\s*/, '').trim().toLowerCase();
+      
+      if (cleanOther.includes(cleanCurrent) && cleanOther.length > cleanCurrent.length) {
+        isSubstring = true;
+        break;
+      }
+    }
+    
+    // Check if this line is an exact duplicate of a line we already kept
+    let isDuplicate = false;
+    for (const kept of cleaned) {
+      const cleanKept = kept.replace(/^[-•*+]\s*/, '').trim().toLowerCase();
+      if (cleanKept === cleanCurrent) {
+        isDuplicate = true;
+        break;
+      }
+    }
+    
+    if (!isSubstring && !isDuplicate) {
+      cleaned.push(current);
+    }
+  }
+  
+  return cleaned;
+};
+
 // Month mapper to normalize strings to 01-12
 const MONTH_MAP: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
@@ -384,7 +425,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       startDate,
       endDate,
       cgpa,
-      description: descLines.join('\n').trim()
+      description: cleanAndDeduplicateLines(descLines).join('\n').trim()
     });
   }
 
@@ -494,7 +535,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       location: location.trim(),
       link,
       github,
-      description: descLines.join('\n').trim()
+      description: cleanAndDeduplicateLines(descLines).join('\n').trim()
     });
   }
 
@@ -584,7 +625,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     projects.push({
       id: `imported-proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: name.trim(),
-      description: descLines.join('\n').trim(),
+      description: cleanAndDeduplicateLines(descLines).join('\n').trim(),
       technologies,
       link,
       github,

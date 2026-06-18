@@ -1,56 +1,20 @@
-
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface PageOverflowWarningProps {
   onPageCountChange?: (pageCount: number) => void;
-  currentPageCount?: number;
+  targetPageCount?: number;
+  actualPageCount?: number;
 }
 
 export const PageOverflowWarning: React.FC<PageOverflowWarningProps> = ({ 
   onPageCountChange, 
-  currentPageCount = 1 
+  targetPageCount = 1,
+  actualPageCount = 1
 }) => {
-  const [isOverflowing, setIsOverflowing] = useState(false);
-
-  useEffect(() => {
-    const checkOverflow = () => {
-      const pages = document.querySelectorAll('.pdf-page');
-      if (pages.length > 0) {
-        let overflowing = false;
-        pages.forEach(page => {
-          if (page.scrollHeight > page.clientHeight + 10) {
-            overflowing = true;
-          }
-        });
-        setIsOverflowing(overflowing);
-      } else {
-        const resumeElement = document.querySelector('.resume-preview');
-        if (resumeElement) {
-          const height = resumeElement.scrollHeight;
-          const maxHeight = 1000 * currentPageCount;
-          setIsOverflowing(height > maxHeight);
-        }
-      }
-    };
-
-    checkOverflow();
-    
-    const resumeElement = document.querySelector('.resume-preview');
-    if (resumeElement) {
-      const observer = new MutationObserver(checkOverflow);
-      observer.observe(resumeElement, {
-        childList: true,
-        subtree: true,
-        characterData: true
-      });
-
-      return () => observer.disconnect();
-    }
-  }, [currentPageCount]);
+  const isOverflowing = actualPageCount > targetPageCount;
 
   const handlePageCountChange = (value: string) => {
     const pageCount = parseInt(value, 10);
@@ -69,7 +33,7 @@ export const PageOverflowWarning: React.FC<PageOverflowWarningProps> = ({
           </p>
           <div className="flex items-center gap-3">
             <span className="text-sm">Choose number of pages:</span>
-            <Select value={currentPageCount.toString()} onValueChange={handlePageCountChange}>
+            <Select value={targetPageCount.toString()} onValueChange={handlePageCountChange}>
               <SelectTrigger className="w-20 h-8">
                 <SelectValue />
               </SelectTrigger>
