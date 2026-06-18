@@ -52,18 +52,18 @@ export const CertificationsForm: React.FC<CertificationsFormProps> = ({
       <div className="space-y-3">
         {data.map(certification => <Collapsible key={certification.id} open={openItems.includes(certification.id)} onOpenChange={() => toggleItem(certification.id)}>
             <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 w-full">
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-0 h-auto">
-                    <div className="flex items-center">
-                      {openItems.includes(certification.id) ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                      <span className="font-medium">
-                        {certification.name || 'New Certification'}
+                  <Button variant="ghost" size="sm" className="p-0 h-auto text-left whitespace-normal hover:bg-transparent justify-start flex-1 min-w-0">
+                    <div className="flex items-start gap-2 min-w-0">
+                      {openItems.includes(certification.id) ? <ChevronUp className="h-4 w-4 flex-shrink-0 mt-0.5" /> : <ChevronDown className="h-4 w-4 flex-shrink-0 mt-0.5" />}
+                      <span className="font-medium break-words">
+                        {certification.name || certification.issuer ? `${certification.name || ''}${certification.name && certification.issuer ? ' - ' : ''}${certification.issuer || ''}` : 'New Certification'}
                       </span>
                     </div>
                   </Button>
                 </CollapsibleTrigger>
-                <Button variant="ghost" size="sm" onClick={() => removeCertification(certification.id)} className="text-red-500 hover:text-red-700">
+                <Button variant="ghost" size="sm" onClick={() => removeCertification(certification.id)} className="text-red-500 hover:text-red-700 flex-shrink-0 ml-auto">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

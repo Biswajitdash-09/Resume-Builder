@@ -1,5 +1,9 @@
 import { ResumeData, Education, Experience, Project, Skill, Certification } from '../types/resume';
 
+const splitLineIntoParts = (line: string): string[] => {
+  return line.split(/\||—|--|\s{2,}/).map(p => p.trim()).filter(p => p.length > 0);
+};
+
 // Month mapper to normalize strings to 01-12
 const MONTH_MAP: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
@@ -294,179 +298,299 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
 
   // 4. Parse Education
   const education: Education[] = [];
-  let currentEdu: Partial<Education> | null = null;
-
+  const eduGroups: string[][] = [];
+  let currentGroup: string[] = [];
+  
   for (const line of sections.education) {
     const isInst = /university|college|school|institute|academy|polytechnic/i.test(line);
     const isDegree = /bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\.|diploma|degree|hsc|ssc|cbse|icse/i.test(line);
+    const dateRange = extractDateRange(line);
     
-    if (isInst || (!currentEdu && line.length > 0)) {
-      if (currentEdu) {
-        education.push(currentEdu as Education);
-      }
-      currentEdu = {
-        id: `imported-edu-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        institution: line,
-        degree: '',
-        fieldOfStudy: '',
-        startDate: '',
-        endDate: '',
-        cgpa: '',
-        description: ''
-      };
-    } else if (currentEdu) {
-      // Look for GPA
-      const gpaMatch = line.match(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/i);
-      if (gpaMatch) {
-        currentEdu.cgpa = gpaMatch[1];
-      }
+    const hasDegree = currentGroup.some(l => /bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\.|diploma|degree/i.test(l));
+    const shouldStartNew = isInst || (isDegree && hasDegree) || (dateRange.start && currentGroup.length > 0 && currentGroup.some(l => extractDateRange(l).start));
+    
+    if (shouldStartNew && currentGroup.length > 0) {
+      eduGroups.push(currentGroup);
+      currentGroup = [];
+    }
+    currentGroup.push(line);
+  }
+  if (currentGroup.length > 0) {
+    eduGroups.push(currentGroup);
+  }
+  
+  for (const group of eduGroups) {
+    let institution = '';
+    let degree = '';
+    let fieldOfStudy = '';
+    let startDate = '';
+    let endDate = '';
+    let cgpa = '';
+    const descLines: string[] = [];
+    
+    for (const line of group) {
+      const parts = splitLineIntoParts(line);
+      let lineUsedForFields = false;
       
-      // Look for Date Range
-      const { start, end } = extractDateRange(line);
-      if (start) {
-        currentEdu.startDate = start;
-        currentEdu.endDate = end;
-      }
-      
-      // Look for Degree and Field of Study
-      if (isDegree) {
-        currentEdu.degree = line;
+      for (const part of parts) {
+        const dateRange = extractDateRange(part);
+        const gpaMatch = part.match(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/i);
+        const isDegree = /bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\.|diploma|degree/i.test(part);
+        const isInst = /university|college|school|institute|academy|polytechnic/i.test(part);
         
-        const fieldMatch = line.match(/(?:in|of)\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
-        if (fieldMatch) {
-          currentEdu.fieldOfStudy = fieldMatch[1].trim();
+        if (dateRange.start) {
+          startDate = dateRange.start;
+          endDate = dateRange.end;
+          lineUsedForFields = true;
         }
-      } else {
-        if (!currentEdu.description) {
-          currentEdu.description = line;
+        if (gpaMatch) {
+          cgpa = gpaMatch[1];
+          lineUsedForFields = true;
+        }
+        if (isDegree) {
+          degree = part;
+          const fieldMatch = part.match(/(?:in|of)\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
+          if (fieldMatch) {
+            fieldOfStudy = fieldMatch[1].trim();
+          }
+          lineUsedForFields = true;
+        }
+        if (isInst) {
+          institution = part;
+          lineUsedForFields = true;
+        }
+      }
+      
+      if (!lineUsedForFields) {
+        const wordCount = line.split(/\s+/).length;
+        if (wordCount > 1 && !institution && /education|study|school|college|university/i.test(line)) {
+          institution = line;
         } else {
-          currentEdu.description += '\n' + line;
+          descLines.push(line);
         }
       }
     }
-  }
-  if (currentEdu) {
-    education.push(currentEdu as Education);
+    
+    if (!institution && group.length > 0) {
+      const fallback = group.find(l => !/bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\./i.test(l) && !extractDateRange(l).start);
+      institution = fallback || group[0];
+    }
+    
+    education.push({
+      id: `imported-edu-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      institution: institution.trim(),
+      degree: degree.trim(),
+      fieldOfStudy: fieldOfStudy.trim(),
+      startDate,
+      endDate,
+      cgpa,
+      description: descLines.join('\n').trim()
+    });
   }
 
   // 5. Parse Experience
   const experience: Experience[] = [];
-  let currentExp: Partial<Experience> | null = null;
-
+  const expGroups: string[][] = [];
+  let currentExpGroup: string[] = [];
+  
   for (const line of sections.experience) {
     const dateRange = extractDateRange(line);
     const hasPositionKeyword = /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator/i.test(line);
     const hasCompanyKeyword = /pvt|ltd|inc|llc|corp|co\.|company|labs|technologies|solutions/i.test(line);
     
-    const isNewEntry = dateRange.start || hasPositionKeyword || (hasCompanyKeyword && !currentExp);
+    const shouldStartNew = dateRange.start || hasPositionKeyword || (hasCompanyKeyword && currentExpGroup.length > 0);
     
-    if (isNewEntry) {
-      if (currentExp) {
-        experience.push(currentExp as Experience);
-      }
-      currentExp = {
-        id: `imported-exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        company: '',
-        position: '',
-        startDate: dateRange.start || '',
-        endDate: dateRange.end || '',
-        current: dateRange.current,
-        description: '',
-        location: '',
-        link: '',
-        github: ''
-      };
-      
-      if (hasPositionKeyword) {
-        currentExp.position = line;
-      } else if (hasCompanyKeyword) {
-        currentExp.company = line;
-      } else {
-        currentExp.description = line;
-      }
-    } else if (currentExp) {
-      const githubMatch = line.match(githubRegex);
-      const generalUrlMatch = line.match(/https?:\/\/[^\s]+/);
-      
-      if (githubMatch) {
-        currentExp.github = 'https://' + githubMatch[0];
-      } else if (generalUrlMatch) {
-        currentExp.link = generalUrlMatch[0];
+    if (shouldStartNew && currentExpGroup.length > 0) {
+      expGroups.push(currentExpGroup);
+      currentExpGroup = [];
+    }
+    currentExpGroup.push(line);
+  }
+  if (currentExpGroup.length > 0) {
+    expGroups.push(currentExpGroup);
+  }
+  
+  for (const group of expGroups) {
+    let company = '';
+    let position = '';
+    let startDate = '';
+    let endDate = '';
+    let current = false;
+    let location = '';
+    let link = '';
+    let github = '';
+    const descLines: string[] = [];
+    
+    for (const line of group) {
+      if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+        descLines.push(line);
+        continue;
       }
       
-      if (dateRange.start && !currentExp.startDate) {
-        currentExp.startDate = dateRange.start;
-        currentExp.endDate = dateRange.end;
-        currentExp.current = dateRange.current;
+      const parts = splitLineIntoParts(line);
+      let lineUsedForFields = false;
+      
+      for (const part of parts) {
+        const dateRange = extractDateRange(part);
+        const hasPosition = /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator/i.test(part);
+        const hasCompany = /pvt|ltd|inc|llc|corp|co\.|company|labs|technologies|solutions/i.test(part);
+        const hasLocation = /(?:bhubaneswar|berhampur|balasore|odisha|delhi|mumbai|bangalore|pune|hyderabad|chennai|california|new york|london|india|usa|uk)/i.test(part);
+        const githubMatch = part.match(githubRegex);
+        const generalUrlMatch = part.match(/https?:\/\/[^\s]+/);
+        
+        if (dateRange.start) {
+          startDate = dateRange.start;
+          endDate = dateRange.end;
+          current = dateRange.current;
+          lineUsedForFields = true;
+        }
+        if (githubMatch) {
+          github = 'https://' + githubMatch[0];
+          lineUsedForFields = true;
+        } else if (generalUrlMatch) {
+          link = generalUrlMatch[0];
+          lineUsedForFields = true;
+        }
+        if (hasPosition) {
+          position = part;
+          lineUsedForFields = true;
+        }
+        if (hasCompany && !hasPosition) {
+          company = part;
+          lineUsedForFields = true;
+        }
+        if (hasLocation && !hasPosition && !hasCompany) {
+          location = part;
+          lineUsedForFields = true;
+        }
       }
       
-      if (hasPositionKeyword && !currentExp.position) {
-        currentExp.position = line;
-      } else if (!currentExp.company && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*')) {
-        currentExp.company = line;
-      } else {
-        if (!currentExp.description) {
-          currentExp.description = line;
+      if (!lineUsedForFields) {
+        const wordCount = line.split(/\s+/).length;
+        if (wordCount > 0 && wordCount < 5 && !position && /developer|engineer|intern|manager|lead|analyst|consultant/i.test(line)) {
+          position = line;
+        } else if (wordCount > 0 && wordCount < 6 && !company && !line.includes(' ')) {
+          company = line;
         } else {
-          currentExp.description += '\n' + line;
+          descLines.push(line);
         }
       }
     }
-  }
-  if (currentExp) {
-    experience.push(currentExp as Experience);
+    
+    if (!position && group.length > 0) {
+      position = group[0];
+    }
+    if (!company && group.length > 1) {
+      company = group[1];
+    }
+    
+    experience.push({
+      id: `imported-exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      company: company.trim(),
+      position: position.trim(),
+      startDate,
+      endDate,
+      current,
+      location: location.trim(),
+      link,
+      github,
+      description: descLines.join('\n').trim()
+    });
   }
 
   // 6. Parse Projects
   const projects: Project[] = [];
-  let currentProject: Partial<Project> | null = null;
-
+  const projGroups: string[][] = [];
+  let currentProjGroup: string[] = [];
+  
   for (const line of sections.projects) {
     const githubMatch = line.match(githubRegex);
     const generalUrlMatch = line.match(/https?:\/\/[^\s]+/);
-    const dateRange = extractDateRange(line);
     
-    const isNewProject = githubMatch || generalUrlMatch || (!currentProject && line.length > 0 && line.length < 60);
+    const isNewProject = githubMatch || generalUrlMatch || (!currentProjGroup.length && line.length > 0 && line.length < 60);
     
-    if (isNewProject) {
-      if (currentProject) {
-        projects.push(currentProject as Project);
-      }
-      currentProject = {
-        id: `imported-proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: line.replace(/https?:\/\/[^\s]+/g, '').replace(/[-•*+]/g, '').trim(),
-        description: '',
-        technologies: [],
-        link: generalUrlMatch ? generalUrlMatch[0] : '',
-        github: githubMatch ? 'https://' + githubMatch[0] : '',
-        startDate: dateRange.start || '',
-        endDate: dateRange.end || ''
-      };
-    } else if (currentProject) {
-      if (githubMatch) {
-        currentProject.github = 'https://' + githubMatch[0];
-      } else if (generalUrlMatch) {
-        currentProject.link = generalUrlMatch[0];
-      }
-      
-      const techKeywordsMatch = line.match(/(?:technologies|tech stack|built with|using)[:\s]+([a-zA-Z0-9\s,._+-]+)/i);
-      const bracketMatch = line.match(/[\[\({]([a-zA-Z0-9\s,._+-]+)[\]\)}]/);
-      
-      if (techKeywordsMatch) {
-        currentProject.technologies = techKeywordsMatch[1].split(/[,|]/).map(t => t.trim());
-      } else if (bracketMatch) {
-        currentProject.technologies = bracketMatch[1].split(/[,|]/).map(t => t.trim());
+    if (isNewProject && currentProjGroup.length > 0) {
+      projGroups.push(currentProjGroup);
+      currentProjGroup = [];
+    }
+    currentProjGroup.push(line);
+  }
+  if (currentProjGroup.length > 0) {
+    projGroups.push(currentProjGroup);
+  }
+  
+  for (const group of projGroups) {
+    let name = '';
+    let description = '';
+    let technologies: string[] = [];
+    let link = '';
+    let github = '';
+    let startDate = '';
+    let endDate = '';
+    const descLines: string[] = [];
+    
+    for (const line of group) {
+      if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+        descLines.push(line);
+        continue;
       }
       
-      if (!currentProject.description) {
-        currentProject.description = line;
-      } else {
-        currentProject.description += '\n' + line;
+      const parts = splitLineIntoParts(line);
+      let lineUsedForFields = false;
+      
+      for (const part of parts) {
+        const githubMatch = part.match(githubRegex);
+        const generalUrlMatch = part.match(/https?:\/\/[^\s]+/);
+        const dateRange = extractDateRange(part);
+        
+        if (dateRange.start) {
+          startDate = dateRange.start;
+          endDate = dateRange.end;
+          lineUsedForFields = true;
+        }
+        if (githubMatch) {
+          github = 'https://' + githubMatch[0];
+          lineUsedForFields = true;
+        } else if (generalUrlMatch) {
+          link = generalUrlMatch[0];
+          lineUsedForFields = true;
+        }
+        
+        const techKeywordsMatch = part.match(/(?:technologies|tech stack|built with|using)[:\s]+([a-zA-Z0-9\s,._+-]+)/i);
+        const bracketMatch = part.match(/[\[\({]([a-zA-Z0-9\s,._+-]+)[\]\)}]/);
+        
+        if (techKeywordsMatch) {
+          technologies = techKeywordsMatch[1].split(/[,|]/).map(t => t.trim());
+          lineUsedForFields = true;
+        } else if (bracketMatch) {
+          technologies = bracketMatch[1].split(/[,|]/).map(t => t.trim());
+          lineUsedForFields = true;
+        }
+      }
+      
+      if (!lineUsedForFields) {
+        if (!name && line.length < 50 && !line.includes(' ')) {
+          name = line;
+        } else {
+          descLines.push(line);
+        }
       }
     }
-  }
-  if (currentProject) {
-    projects.push(currentProject as Project);
+    
+    if (!name && group.length > 0) {
+      name = group[0].replace(/https?:\/\/[^\s]+/g, '').replace(/[-•*+]/g, '').trim();
+    }
+    
+    projects.push({
+      id: `imported-proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: name.trim(),
+      description: descLines.join('\n').trim(),
+      technologies,
+      link,
+      github,
+      startDate,
+      endDate
+    });
   }
 
   // 7. Parse Certifications

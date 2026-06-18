@@ -79,18 +79,18 @@ export const ProjectsForm: React.FC<ProjectsFormProps> = ({
         {data.map(project => (
           <Collapsible key={project.id} open={openItems.includes(project.id)} onOpenChange={() => toggleItem(project.id)}>
             <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 w-full">
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-0 h-auto">
-                    <div className="flex items-center">
-                      {openItems.includes(project.id) ? <ChevronUp className="h-4 w-4 mr-2" /> : <ChevronDown className="h-4 w-4 mr-2" />}
-                      <span className="font-medium">
+                  <Button variant="ghost" size="sm" className="p-0 h-auto text-left whitespace-normal hover:bg-transparent justify-start flex-1 min-w-0">
+                    <div className="flex items-start gap-2 min-w-0">
+                      {openItems.includes(project.id) ? <ChevronUp className="h-4 w-4 flex-shrink-0 mt-0.5" /> : <ChevronDown className="h-4 w-4 flex-shrink-0 mt-0.5" />}
+                      <span className="font-medium break-words">
                         {project.name || 'New Project'}
                       </span>
                     </div>
                   </Button>
                 </CollapsibleTrigger>
-                <Button variant="ghost" size="sm" onClick={() => removeProject(project.id)} className="text-red-500 hover:text-red-700">
+                <Button variant="ghost" size="sm" onClick={() => removeProject(project.id)} className="text-red-500 hover:text-red-700 flex-shrink-0 ml-auto">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
