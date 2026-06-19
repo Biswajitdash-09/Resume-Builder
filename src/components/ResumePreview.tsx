@@ -857,23 +857,35 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
               >
                 <div className="relative z-10 w-full flex-1 flex flex-col justify-start">
                   {template === 'two-column' ? (
-                    <div className="flex h-full w-full flex-1" style={{ gap: `${sectionSpacing}px` }}>
+                    <div className="flex h-full w-full flex-1">
                       {/* Left Sidebar (30% width) */}
-                      <div className="w-[30%] border-r border-gray-200 pr-4 flex flex-col justify-start" style={{ gap: `${sectionSpacing}px` }}>
+                      <div className="w-[30%] border-r border-gray-200 flex flex-col justify-start" style={{ paddingRight: `${sectionSpacing}px` }}>
                         {pageBlocks
                           .filter(b => ['header', 'skills', 'interests'].includes(b.type))
-                          .map((block) => renderBlock(block, pageBlocks.indexOf(block), pageBlocks))}
+                          .map((block, idx, arr) => (
+                            <div key={idx} style={{ marginBottom: idx < arr.length - 1 ? `${sectionSpacing}px` : '0px' }}>
+                              {renderBlock(block, pageBlocks.indexOf(block), pageBlocks)}
+                            </div>
+                          ))}
                       </div>
                       {/* Right Main Body (70% width) */}
-                      <div className="w-[70%] flex flex-col justify-start" style={{ gap: `${sectionSpacing}px` }}>
+                      <div className="w-[70%] flex flex-col justify-start" style={{ paddingLeft: `${sectionSpacing}px` }}>
                         {pageBlocks
                           .filter(b => !['header', 'skills', 'interests'].includes(b.type))
-                          .map((block) => renderBlock(block, pageBlocks.indexOf(block), pageBlocks))}
+                          .map((block, idx, arr) => (
+                            <div key={idx} style={{ marginBottom: idx < arr.length - 1 ? `${sectionSpacing}px` : '0px' }}>
+                              {renderBlock(block, pageBlocks.indexOf(block), pageBlocks)}
+                            </div>
+                          ))}
                       </div>
                     </div>
                   ) : (
-                    <div className="w-full flex-1 flex flex-col justify-start" style={{ gap: `${sectionSpacing}px` }}>
-                      {pageBlocks.map((block, bIdx) => renderBlock(block, bIdx, pageBlocks))}
+                    <div className="w-full flex-1 flex flex-col justify-start">
+                      {pageBlocks.map((block, bIdx) => (
+                        <div key={bIdx} style={{ marginBottom: bIdx < pageBlocks.length - 1 ? `${sectionSpacing}px` : '0px' }}>
+                          {renderBlock(block, bIdx, pageBlocks)}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

@@ -1,4 +1,3 @@
-
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { ResumeData } from '../types/resume';
@@ -14,6 +13,11 @@ import { ResumeData } from '../types/resume';
  * @throws Error if resume page elements are not found or PDF generation fails
  */
 export const exportToPDF = async (data: ResumeData) => {
+  // Wait for all custom Google fonts to load completely first
+  if (document.fonts) {
+    await document.fonts.ready;
+  }
+
   // Find all resume page elements
   const pages = document.querySelectorAll('.pdf-page');
   
@@ -22,6 +26,15 @@ export const exportToPDF = async (data: ResumeData) => {
     throw new Error('No resume pages found');
   }
 
+  // Create temporary offscreen container to render the pages unscaled
+  const tempContainer = document.createElement('div');
+  tempContainer.style.position = 'fixed';
+  tempContainer.style.top = '-9999px';
+  tempContainer.style.left = '-9999px';
+  tempContainer.style.width = '816px'; // Standard letter width at 96 DPI
+  tempContainer.style.transform = 'none';
+  document.body.appendChild(tempContainer);
+
   // Create jsPDF instance (letter size, portrait)
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -29,26 +42,34 @@ export const exportToPDF = async (data: ResumeData) => {
     format: 'letter'
   });
 
-  // Temporarily set printing styles
-  const printStyle = document.createElement('style');
-  printStyle.id = 'pdf-print-temp-style';
-  printStyle.innerHTML = `
-    .pdf-page {
-      border: none !important;
-      box-shadow: none !important;
-      margin: 0 !important;
-    }
-  `;
-  
   try {
     console.log('Starting high-quality PDF generation page by page...');
-    document.head.appendChild(printStyle);
     
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i] as HTMLElement;
       
-      // Render page element to canvas with high resolution scale
-      const canvas = await html2canvas(page, {
+      // Clone the page element so we can render it unscaled and without transforms
+      const clonedPage = page.cloneNode(true) as HTMLElement;
+      
+      // Reset layout and styles that might conflict or scale
+      clonedPage.style.transform = 'none';
+      clonedPage.style.transformOrigin = 'top left';
+      clonedPage.style.margin = '0';
+      clonedPage.style.border = 'none';
+      clonedPage.style.boxShadow = 'none';
+      clonedPage.style.width = '8.5in'; // Force letter dimensions
+      clonedPage.style.height = '11in';
+      clonedPage.style.minHeight = '11in';
+      clonedPage.style.maxHeight = '11in';
+      clonedPage.style.boxSizing = 'border-box';
+      
+      tempContainer.appendChild(clonedPage);
+      
+      // Wait a frame to ensure the DOM layout is applied
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      
+      // Render cloned page element to canvas with high resolution scale
+      const canvas = await html2canvas(clonedPage, {
         scale: 3, // Crisp 3x scaling
         useCORS: true,
         allowTaint: true,
@@ -65,6 +86,9 @@ export const exportToPDF = async (data: ResumeData) => {
       
       // Draw image to fill the exact letter page dimensions (8.5 x 11 inches)
       pdf.addImage(imgData, 'JPEG', 0, 0, 8.5, 11, undefined, 'FAST');
+      
+      // Clean up the clone
+      tempContainer.removeChild(clonedPage);
     }
 
     // Dynamic filename based on user's name
@@ -75,9 +99,9 @@ export const exportToPDF = async (data: ResumeData) => {
     console.error('Error generating PDF:', error);
     throw error;
   } finally {
-    const styleTag = document.getElementById('pdf-print-temp-style');
-    if (styleTag) {
-      styleTag.remove();
+    // Clean up temporary container
+    if (tempContainer.parentNode) {
+      tempContainer.parentNode.removeChild(tempContainer);
     }
   }
 };

@@ -238,7 +238,7 @@ export const ResumeBuilder = () => {
   const handleExportWord = () => {
     try {
       console.log('Export Word clicked');
-      exportToWord(resumeData);
+      exportToWord(resumeData, sectionOrder);
       toast({
         title: "Word Document Downloaded",
         description: "Your resume has been downloaded in Word format successfully!"
