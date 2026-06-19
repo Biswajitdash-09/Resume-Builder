@@ -8,6 +8,8 @@ interface ResumePreviewProps {
   fontSize?: number;
   pageCount?: number;
   onPageCountCalculated?: (pageCount: number) => void;
+  fontFamily?: string;
+  template?: string;
 }
 
 type ResumeBlock = 
@@ -121,7 +123,7 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
 };
 
 export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
-  ({ data, fontSize = 12, pageCount = 1, onPageCountCalculated }, ref) => {
+  ({ data, fontSize = 12, pageCount = 1, onPageCountCalculated, fontFamily = 'inter', template = 'classic' }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [scale, setScale] = React.useState(1);
 
@@ -184,9 +186,20 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
     };
 
     // Style adjustments
+    const fontFamilyStyles: Record<string, string> = {
+      inter: '"Inter", sans-serif',
+      outfit: '"Outfit", sans-serif',
+      lora: '"Lora", serif',
+      playfair: '"Playfair Display", serif',
+      mono: '"JetBrains Mono", monospace',
+      poppins: '"Poppins", sans-serif',
+      montserrat: '"Montserrat", sans-serif'
+    };
+
     const dynamicStyles = {
       fontSize: `${fontSize}px`,
-      lineHeight: fontSize <= 10 ? '1.1' : fontSize <= 14 ? '1.3' : '1.4'
+      lineHeight: fontSize <= 10 ? '1.1' : fontSize <= 14 ? '1.3' : '1.4',
+      fontFamily: fontFamilyStyles[fontFamily] || fontFamilyStyles.inter
     };
 
     const headerFontSize = Math.max(fontSize + 8, 18);
@@ -255,11 +268,177 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
       return true;
     };
 
+    const renderSectionHeader = (title: string) => {
+      if (template === 'modern') {
+        return (
+          <h2 
+            className="font-extrabold text-slate-950 mb-2 pb-1 border-b border-slate-300 uppercase tracking-wide flex items-center"
+            style={{ fontSize: `${sectionHeaderFontSize}px` }}
+          >
+            <span className="w-1.5 h-4 bg-slate-900 mr-2 rounded-sm inline-block"></span>
+            {title}
+          </h2>
+        );
+      }
+      if (template === 'minimalist') {
+        return (
+          <h2 
+            className="font-bold text-gray-950 mb-1 border-b border-gray-400 uppercase tracking-tight"
+            style={{ fontSize: `${sectionHeaderFontSize - 1}px` }}
+          >
+            {title}
+          </h2>
+        );
+      }
+      return (
+        <h2 
+          className="font-bold text-gray-950 mb-2 border-b border-gray-200 uppercase tracking-normal"
+          style={{ fontSize: `${sectionHeaderFontSize}px` }}
+        >
+          {title}
+        </h2>
+      );
+    };
+
     const renderBlock = (block: ResumeBlock, index: number, pageBlocks: ResumeBlock[]) => {
       const showHeader = isFirstOfTypeOnPage(index, block.type, pageBlocks);
       
       switch (block.type) {
         case 'header':
+          if (template === 'two-column') {
+            return (
+              <header key="header" className="text-left pb-4 mb-2 border-b border-gray-200">
+                {data.profilePicture && (
+                  <div className="mb-4 text-center sm:text-left">
+                    <img 
+                      src={data.profilePicture} 
+                      alt="Profile" 
+                      className="w-24 h-24 rounded-full object-cover border border-gray-200 mx-auto sm:mx-0"
+                    />
+                  </div>
+                )}
+                <h1 
+                  className="font-bold text-gray-900 leading-tight mb-3"
+                  style={{ fontSize: `${headerFontSize + 2}px` }}
+                >
+                  {data.personalInfo.firstName} <br/> {data.personalInfo.lastName}
+                </h1>
+                <div className="space-y-2 text-gray-600 text-[10px] leading-relaxed">
+                  {data.personalInfo.email && (
+                    <div className="flex items-center gap-1.5 break-all">
+                      <Mail className="h-3 w-3 flex-shrink-0" />
+                      <span>{data.personalInfo.email}</span>
+                    </div>
+                  )}
+                  {data.personalInfo.phone && (
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="h-3 w-3 flex-shrink-0" />
+                      <span>{data.personalInfo.phone}</span>
+                    </div>
+                  )}
+                  {data.personalInfo.address && (
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-3 w-3 flex-shrink-0" />
+                      <span>{data.personalInfo.address}</span>
+                    </div>
+                  )}
+                  {data.personalInfo.linkedin && (
+                    <div className="flex items-center gap-1.5 break-all">
+                      <Linkedin className="h-3 w-3 flex-shrink-0" />
+                      <span>{data.personalInfo.linkedin}</span>
+                    </div>
+                  )}
+                  {data.personalInfo.github && (
+                    <div className="flex items-center gap-1.5 break-all">
+                      <Github className="h-3 w-3 flex-shrink-0" />
+                      <span>{data.personalInfo.github}</span>
+                    </div>
+                  )}
+                </div>
+              </header>
+            );
+          }
+          if (template === 'modern') {
+            return (
+              <header key="header" className="text-left pb-4 mb-4 border-b-2 border-slate-900">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h1 
+                      className="font-extrabold text-slate-950 mb-1"
+                      style={{ fontSize: `${headerFontSize + 2}px` }}
+                    >
+                      {data.personalInfo.firstName} {data.personalInfo.lastName}
+                    </h1>
+                    <div className="flex flex-wrap gap-4 text-slate-700 text-xs mt-2">
+                      {data.personalInfo.email && (
+                        <div className="flex items-center gap-1">
+                          <Mail className="h-3 w-3 flex-shrink-0" />
+                          <span>{data.personalInfo.email}</span>
+                        </div>
+                      )}
+                      {data.personalInfo.phone && (
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-3 w-3 flex-shrink-0" />
+                          <span>{data.personalInfo.phone}</span>
+                        </div>
+                      )}
+                      {data.personalInfo.address && (
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 flex-shrink-0" />
+                          <span>{data.personalInfo.address}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-4 text-slate-700 text-xs mt-1">
+                      {data.personalInfo.linkedin && (
+                        <div className="flex items-center gap-1">
+                          <Linkedin className="h-3 w-3 flex-shrink-0" />
+                          <span>{data.personalInfo.linkedin}</span>
+                        </div>
+                      )}
+                      {data.personalInfo.github && (
+                        <div className="flex items-center gap-1">
+                          <Github className="h-3 w-3 flex-shrink-0" />
+                          <span>{data.personalInfo.github}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {data.profilePicture && (
+                    <img 
+                      src={data.profilePicture} 
+                      alt="Profile" 
+                      className="w-16 h-16 rounded-full object-cover border-2 border-slate-300"
+                    />
+                  )}
+                </div>
+              </header>
+            );
+          }
+          if (template === 'minimalist') {
+            return (
+              <header key="header" className="text-center pb-2 mb-2 border-b border-gray-300">
+                <h1 
+                  className="font-bold text-gray-900 tracking-tight mb-1"
+                  style={{ fontSize: `${headerFontSize - 2}px` }}
+                >
+                  {data.personalInfo.firstName} {data.personalInfo.lastName}
+                </h1>
+                <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-gray-600 text-[10px]">
+                  {data.personalInfo.email && <span>{data.personalInfo.email}</span>}
+                  {data.personalInfo.email && data.personalInfo.phone && <span>|</span>}
+                  {data.personalInfo.phone && <span>{data.personalInfo.phone}</span>}
+                  {data.personalInfo.phone && data.personalInfo.address && <span>|</span>}
+                  {data.personalInfo.address && <span>{data.personalInfo.address}</span>}
+                  {data.personalInfo.address && data.personalInfo.linkedin && <span>|</span>}
+                  {data.personalInfo.linkedin && <span>{data.personalInfo.linkedin.replace(/https?:\/\/(www\.)?/, '')}</span>}
+                  {data.personalInfo.linkedin && data.personalInfo.github && <span>|</span>}
+                  {data.personalInfo.github && <span>{data.personalInfo.github.replace(/https?:\/\/(www\.)?/, '')}</span>}
+                </div>
+              </header>
+            );
+          }
+          // Default Classic
           return (
             <header key="header" className="text-center border-b border-gray-300 pb-3 mb-3">
               <div className="flex items-start justify-between mb-2">
@@ -319,14 +498,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
         case 'summary':
           return (
             <section key="summary" className="mb-3">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-1 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  Professional Summary
-                </h2>
-              )}
+              {showHeader && renderSectionHeader("Professional Summary")}
               <p className="text-gray-700 leading-tight">{data.summary}</p>
             </section>
           );
@@ -335,14 +507,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
           const edu = block.item;
           return (
             <section key={`edu-${edu.id}`} className="mb-2">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  Education
-                </h2>
-              )}
+              {showHeader && renderSectionHeader("Education")}
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-bold text-gray-900 text-sm">{edu.institution}</h3>
@@ -365,14 +530,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
           const exp = block.item;
           return (
             <section key={`exp-${exp.id}`} className="mb-2">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  Work Experience
-                </h2>
-              )}
+              {showHeader && renderSectionHeader("Work Experience")}
               <div className="flex justify-between items-start mb-1">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -422,14 +580,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
           const project = block.item;
           return (
             <section key={`proj-${project.id}`} className="mb-2">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  Projects
-                </h2>
-              )}
+              {showHeader && renderSectionHeader("Projects")}
               <div className="flex justify-between items-start mb-1">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -477,14 +628,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
         case 'skills':
           return (
             <section key="skills" className="mb-2">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  Skills
-                </h2>
-              )}
+              {showHeader && renderSectionHeader("Skills")}
               <div className="space-y-1">
                 {['Technical Subjects', 'Programming Languages', 'Spoken Languages', 'Soft Skills', 'Frameworks', 'Dev Tools'].map((category) => {
                   const categorySkills = data.skills.filter(skill => skill.category === category);
@@ -507,14 +651,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
           const cert = block.item;
           return (
             <section key={`cert-${cert.id}`} className="mb-2">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  Certifications and Awards
-                </h2>
-              )}
+              {showHeader && renderSectionHeader("Certifications and Awards")}
               <div className="flex justify-between items-start text-xs">
                 <div>
                   <h3 className="font-bold text-gray-900">{cert.name}</h3>
@@ -537,14 +674,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
         case 'interests':
           return (
             <section key="interests" className="mb-2">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  Interests & Hobbies
-                </h2>
-              )}
+              {showHeader && renderSectionHeader("Interests & Hobbies")}
               <p className="text-gray-700 text-xs">
                 {data.interests.map(interest => interest.name).join(', ')}
               </p>
@@ -555,14 +685,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
           const section = block.item;
           return (
             <section key={`custom-${section.id}`} className="mb-2">
-              {showHeader && (
-                <h2 
-                  className="font-bold text-gray-900 mb-2 border-b border-gray-200 uppercase"
-                  style={{ fontSize: `${sectionHeaderFontSize}px` }}
-                >
-                  {section.title}
-                </h2>
-              )}
+              {showHeader && renderSectionHeader(section.title)}
               <div className="text-gray-700 text-xs">
                 {section.content.includes('•') || section.content.includes('-') ? (
                   <ul className="space-y-1">
@@ -607,7 +730,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
             {pages.map((pageBlocks, index) => (
               <Card 
                 key={index}
-                className="p-8 mx-auto bg-white text-black relative shadow-lg border border-gray-300 pdf-page overflow-hidden flex flex-col justify-start" 
+                className={`mx-auto bg-white text-black relative shadow-lg border border-gray-300 pdf-page overflow-hidden flex flex-col justify-start ${template === 'minimalist' ? 'p-5' : 'p-8'}`} 
                 style={{
                   ...dynamicStyles,
                   width: '8.5in',
@@ -617,8 +740,27 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                   boxSizing: 'border-box'
                 }}
               >
-                <div className="space-y-3 relative z-10 w-full flex-1">
-                  {pageBlocks.map((block, bIdx) => renderBlock(block, bIdx, pageBlocks))}
+                <div className="relative z-10 w-full flex-1 flex flex-col justify-start">
+                  {template === 'two-column' ? (
+                    <div className="flex gap-6 h-full w-full flex-1">
+                      {/* Left Sidebar (30% width) */}
+                      <div className="w-[30%] border-r border-gray-200 pr-4 space-y-3 flex flex-col justify-start">
+                        {pageBlocks
+                          .filter(b => ['header', 'skills', 'interests'].includes(b.type))
+                          .map((block) => renderBlock(block, pageBlocks.indexOf(block), pageBlocks))}
+                      </div>
+                      {/* Right Main Body (70% width) */}
+                      <div className="w-[70%] space-y-3 flex flex-col justify-start">
+                        {pageBlocks
+                          .filter(b => !['header', 'skills', 'interests'].includes(b.type))
+                          .map((block) => renderBlock(block, pageBlocks.indexOf(block), pageBlocks))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`w-full flex-1 flex flex-col justify-start ${template === 'minimalist' ? 'space-y-1.5' : 'space-y-3'}`}>
+                      {pageBlocks.map((block, bIdx) => renderBlock(block, bIdx, pageBlocks))}
+                    </div>
+                  )}
                 </div>
                 
                 {/* Optional page number footer for display */}

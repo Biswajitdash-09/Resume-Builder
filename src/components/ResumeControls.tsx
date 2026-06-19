@@ -11,6 +11,10 @@ import { extractTextFromPDF, extractTextFromDOCX, parseResumeText } from '../uti
 interface ResumeControlsProps {
   fontSize: number;
   onFontSizeChange: (size: number) => void;
+  fontFamily: string;
+  onFontFamilyChange: (font: string) => void;
+  template: string;
+  onTemplateChange: (template: string) => void;
   onImportResume: (data: any) => void;
   resumeData: ResumeData;
 }
@@ -18,6 +22,10 @@ interface ResumeControlsProps {
 export const ResumeControls: React.FC<ResumeControlsProps> = ({
   fontSize,
   onFontSizeChange,
+  fontFamily,
+  onFontFamilyChange,
+  template,
+  onTemplateChange,
   onImportResume,
   resumeData
 }) => {
@@ -180,6 +188,39 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
           >
             <ZoomIn className="h-3 w-3" />
           </Button>
+        </div>
+        
+        {/* Font Family Selector */}
+        <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Font Family:</span>
+          <select 
+            value={fontFamily} 
+            onChange={e => onFontFamilyChange(e.target.value)}
+            className="h-8 px-2 rounded-md border border-input bg-background text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="inter">Inter (Sans)</option>
+            <option value="poppins">Poppins (Sans)</option>
+            <option value="montserrat">Montserrat (Sans)</option>
+            <option value="outfit">Outfit (Sans)</option>
+            <option value="lora">Lora (Serif)</option>
+            <option value="playfair">Playfair Display (Serif)</option>
+            <option value="mono">JetBrains Mono (Mono)</option>
+          </select>
+        </div>
+
+        {/* Template Selector */}
+        <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Template:</span>
+          <select 
+            value={template} 
+            onChange={e => onTemplateChange(e.target.value)}
+            className="h-8 px-2 rounded-md border border-input bg-background text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="classic">Classic (Centered)</option>
+            <option value="modern">Modern Professional</option>
+            <option value="minimalist">Minimalist</option>
+            <option value="two-column">Creative (Two-Column)</option>
+          </select>
         </div>
 
         {/* Resume Import */}

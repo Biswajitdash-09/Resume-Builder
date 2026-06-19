@@ -50,6 +50,12 @@ export const ResumeBuilder = () => {
     return saved ? parseInt(saved, 10) : 1;
   }); // Target page count
   const [actualPageCount, setActualPageCount] = useState(1); // Actual calculated page count
+  const [fontFamily, setFontFamily] = useState<string>(() => {
+    return localStorage.getItem('resumeFontFamily') || 'inter';
+  });
+  const [template, setTemplate] = useState<string>(() => {
+    return localStorage.getItem('resumeTemplate') || 'classic';
+  });
   
   // Main resume data state - contains all user input
   const [resumeData, setResumeData] = useState<ResumeData>(() => {
@@ -98,9 +104,11 @@ export const ResumeBuilder = () => {
       localStorage.setItem('resumeData', JSON.stringify(resumeData));
       localStorage.setItem('resumeFontSize', fontSize.toString());
       localStorage.setItem('resumePageCount', pageCount.toString());
+      localStorage.setItem('resumeFontFamily', fontFamily);
+      localStorage.setItem('resumeTemplate', template);
     }, 10000);
     return () => clearInterval(interval);
-  }, [resumeData, fontSize, pageCount]);
+  }, [resumeData, fontSize, pageCount, fontFamily, template]);
 
   /**
    * Dark mode toggle - applies theme to entire document and persists
@@ -121,6 +129,8 @@ export const ResumeBuilder = () => {
     localStorage.setItem('resumeData', JSON.stringify(resumeData));
     localStorage.setItem('resumeFontSize', fontSize.toString());
     localStorage.setItem('resumePageCount', pageCount.toString());
+    localStorage.setItem('resumeFontFamily', fontFamily);
+    localStorage.setItem('resumeTemplate', template);
     toast({
       title: "Resume Saved",
       description: "Your resume has been saved successfully!"
@@ -284,10 +294,14 @@ export const ResumeBuilder = () => {
       {/* Main Content Area */}
       <div className="flex-1">
         <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-4">
-          {/* Resume Controls - Font size and import/export */}
+          {/* Resume Controls - Font size, style, templates and import/export */}
           <ResumeControls
             fontSize={fontSize}
             onFontSizeChange={setFontSize}
+            fontFamily={fontFamily}
+            onFontFamilyChange={setFontFamily}
+            template={template}
+            onTemplateChange={setTemplate}
             onImportResume={handleImportResume}
             resumeData={resumeData}
           />
@@ -364,6 +378,8 @@ export const ResumeBuilder = () => {
                 fontSize={fontSize} 
                 pageCount={pageCount}
                 onPageCountCalculated={setActualPageCount}
+                fontFamily={fontFamily}
+                template={template}
               />
             </div>
           </div>
