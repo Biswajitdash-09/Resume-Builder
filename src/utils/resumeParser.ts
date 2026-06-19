@@ -415,6 +415,40 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     return { start: '', end: '', current: false };
   };
 
+  const extractAndStripDates = (part: string): { cleanedText: string, startDate: string, endDate: string, current: boolean } => {
+    let cleanedText = part;
+    let startDate = '';
+    let endDate = '';
+    let current = false;
+
+    // Remove GPA patterns to avoid misidentifying values like "8.5/10" as dates
+    const lineWithoutGpa = part.replace(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/gi, '');
+    
+    const dateRangeRegex = /([a-z]+\s+\d{4}|\d{4}|\d{1,2}\/\d{2,4})\s*[-–—to\s]+\s*([a-z]+\s+\d{4}|\d{4}|\d{1,2}\/\d{2,4}|present|current)/i;
+    const match = lineWithoutGpa.match(dateRangeRegex);
+    
+    if (match) {
+      const startStr = match[1];
+      const endStr = match[2];
+      current = /present|current/i.test(endStr);
+      startDate = normalizeDate(startStr);
+      endDate = current ? '' : normalizeDate(endStr);
+      cleanedText = part.replace(match[0], '');
+    } else {
+      const singleDateRegex = /\b([a-z]+\s+\d{4}|\d{4})\b/i;
+      const singleMatch = lineWithoutGpa.match(singleDateRegex);
+      if (singleMatch) {
+        startDate = normalizeDate(singleMatch[1]);
+        cleanedText = part.replace(singleMatch[0], '');
+      }
+    }
+    
+    // Clean up any remaining leading/trailing punctuation or connectors
+    cleanedText = cleanedText.replace(/^[\s,;:\-|—–/()]+|[\s,;:\-|—–/()]+$/g, '').trim();
+    
+    return { cleanedText, startDate, endDate, current };
+  };
+
   // 4. Parse Education
   const education: Education[] = [];
   const eduGroups: string[][] = [];
@@ -454,36 +488,36 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       let lineUsedForFields = false;
       
       for (const part of parts) {
-        const dateRange = extractDateRange(part);
-        const gpaMatch = part.match(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/i);
-        const isDegree = /bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\.|diploma|degree/i.test(part);
-        const isInst = /university|college|school|institute|academy|polytechnic/i.test(part);
-        
-        if (dateRange.start) {
-          startDate = dateRange.start;
-          endDate = dateRange.end;
+        const { cleanedText, startDate: sDate, endDate: eDate } = extractAndStripDates(part);
+        if (sDate) {
+          startDate = sDate;
+          endDate = eDate;
           lineUsedForFields = true;
         }
+        
+        const gpaMatch = cleanedText.match(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/i);
+        const isDegree = /bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\.|diploma|degree/i.test(cleanedText);
+        const isInst = /university|college|school|institute|academy|polytechnic/i.test(cleanedText);
+        
         if (gpaMatch) {
           cgpa = gpaMatch[1];
           lineUsedForFields = true;
         }
         if (isDegree) {
-          let fieldMatch = part.match(/\bin\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
+          let fieldMatch = cleanedText.match(/\bin\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
           if (!fieldMatch) {
-            fieldMatch = part.match(/(?<!bachelor|master|associate|doctor|science)\s+of\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
+            fieldMatch = cleanedText.match(/(?<!bachelor|master|associate|doctor|science)\s+of\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
           }
           if (fieldMatch) {
             fieldOfStudy = cleanMetadata(fieldMatch[1].trim());
-            // Strip the field match from the degree name
-            degree = cleanMetadata(part.replace(fieldMatch[0], '').trim());
+            degree = cleanMetadata(cleanedText.replace(fieldMatch[0], '').trim());
           } else {
-            degree = cleanMetadata(part);
+            degree = cleanMetadata(cleanedText);
           }
           lineUsedForFields = true;
         }
         if (isInst) {
-          institution = cleanMetadata(part);
+          institution = cleanMetadata(cleanedText);
           lineUsedForFields = true;
         }
       }
@@ -527,7 +561,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
   
   for (const line of sections.experience) {
     const dateRange = extractDateRange(line);
-    const hasPositionKeyword = /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator/i.test(line);
+    const hasPositionKeyword = /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator|staff|member/i.test(line);
     const hasCompanyKeyword = /pvt|ltd|inc|llc|corp|co\.|company|labs|technologies|solutions/i.test(line);
     
     const wordCount = line.split(/\s+/).length;
@@ -554,7 +588,9 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     let link = '';
     let github = '';
     const descLines: string[] = [];
-    const remainingParts: string[] = [];
+    
+    // Process line by line to keep context structures intact
+    const lineTexts: string[][] = [];
     
     for (const line of group) {
       if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
@@ -562,44 +598,73 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
         continue;
       }
       
+      const lineParts: string[] = [];
       const parts = splitLineIntoParts(line);
       for (const part of parts) {
-        const dateRange = extractDateRange(part);
         const githubMatch = part.match(githubRegex);
         const generalUrlMatch = part.match(/https?:\/\/[^\s]+/);
         
-        if (dateRange.start) {
-          startDate = dateRange.start;
-          endDate = dateRange.end;
-          current = dateRange.current;
-        } else if (githubMatch) {
+        if (githubMatch) {
           github = 'https://' + githubMatch[0];
         } else if (generalUrlMatch) {
           link = generalUrlMatch[0];
         } else {
-          remainingParts.push(part);
+          const { cleanedText, startDate: sDate, endDate: eDate, current: curr } = extractAndStripDates(part);
+          if (sDate) {
+            startDate = sDate;
+            endDate = eDate;
+            current = curr;
+          }
+          if (cleanedText) {
+            lineParts.push(cleanedText);
+          }
         }
+      }
+      if (lineParts.length > 0) {
+        lineTexts.push(lineParts);
       }
     }
     
-    // Positional extraction from non-date/non-url parts
-    const positionIndex = remainingParts.findIndex(part => 
-      /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator|staff|member|associate|founder/i.test(part)
-    );
-    
-    if (positionIndex !== -1) {
-      position = cleanMetadata(remainingParts[positionIndex]);
-      remainingParts.splice(positionIndex, 1);
+    // Find the position index first
+    let positionLineIdx = -1;
+    let positionPartIdx = -1;
+    for (let lIdx = 0; lIdx < lineTexts.length; lIdx++) {
+      const parts = lineTexts[lIdx];
+      const pIdx = parts.findIndex(part => 
+        /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator|staff|member|associate|founder/i.test(part)
+      );
+      if (pIdx !== -1) {
+        positionLineIdx = lIdx;
+        positionPartIdx = pIdx;
+        break;
+      }
     }
     
-    if (remainingParts.length === 1) {
-      company = cleanMetadata(remainingParts[0]);
-    } else if (remainingParts.length >= 2) {
-      company = cleanMetadata(remainingParts[0]);
-      location = cleanMetadata(remainingParts[1]);
+    if (positionLineIdx !== -1) {
+      position = lineTexts[positionLineIdx][positionPartIdx];
+      lineTexts[positionLineIdx].splice(positionPartIdx, 1);
     }
     
-    // Fallback Positional checks if fields are missing
+    // The other element on the position line is the location
+    if (positionLineIdx !== -1 && lineTexts[positionLineIdx].length > 0) {
+      location = lineTexts[positionLineIdx][0];
+      lineTexts[positionLineIdx].splice(0, 1);
+    }
+    
+    // The remaining text elements are candidate companies
+    const flatRemaining = lineTexts.flat().filter(Boolean);
+    if (flatRemaining.length === 1) {
+      company = flatRemaining[0];
+    } else if (flatRemaining.length >= 2) {
+      if (!location) {
+        company = flatRemaining[0];
+        location = flatRemaining[1];
+      } else {
+        company = flatRemaining.join(' - ');
+      }
+    }
+    
+    // Fallbacks
     if (!position && group.length > 0) {
       const fallbackPos = group.find(l => !/^[-•*+]\s*/.test(l) && !extractDateRange(l).start);
       position = cleanMetadata(fallbackPos || group[0]);
@@ -609,7 +674,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
         idx > 0 && 
         !/^[-•*+]\s*/.test(l) && 
         !extractDateRange(l).start &&
-        !/developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator/i.test(l)
+        !/developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator|staff|member/i.test(l)
       );
       company = cleanMetadata(fallbackCompany || group[1]);
     }
@@ -671,44 +736,40 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       for (const part of parts) {
         const githubMatch = part.match(githubRegex);
         const generalUrlMatch = part.match(/https?:\/\/[^\s]+/);
-        const dateRange = extractDateRange(part);
         
-        if (dateRange.start) {
-          startDate = dateRange.start;
-          endDate = dateRange.end;
-          lineUsedForFields = true;
-        }
         if (githubMatch) {
           github = 'https://' + githubMatch[0];
           lineUsedForFields = true;
         } else if (generalUrlMatch) {
           link = generalUrlMatch[0];
           lineUsedForFields = true;
-        }
-        
-        const techKeywordsMatch = part.match(/(?:technologies|tech stack|built with|using)[:\s]+([a-zA-Z0-9\s,._+-]+)/i);
-        const bracketMatch = part.match(/[\[\({]([a-zA-Z0-9\s,._+-]+)[\]\)}]/);
-        
-        if (techKeywordsMatch) {
-          technologies = techKeywordsMatch[1].split(/[,|]/).map(t => t.trim());
-          lineUsedForFields = true;
-        } else if (bracketMatch) {
-          technologies = bracketMatch[1].split(/[,|]/).map(t => t.trim());
-          lineUsedForFields = true;
-        }
-      }
-      
-      if (!lineUsedForFields) {
-        if (!name && line.length < 50 && !line.includes(' ')) {
-          name = cleanMetadata(line);
         } else {
-          descLines.push(line);
+          const { cleanedText, startDate: sDate, endDate: eDate } = extractAndStripDates(part);
+          if (sDate) {
+            startDate = sDate;
+            endDate = eDate;
+            lineUsedForFields = true;
+          }
+          if (cleanedText) {
+            const techKeywordsMatch = cleanedText.match(/(?:technologies|tech stack|built with|using)[:\s]+([a-zA-Z0-9\s,._+-]+)/i);
+            const bracketMatch = cleanedText.match(/[\[\({]([a-zA-Z0-9\s,._+-]+)[\]\)}]/);
+            
+            if (techKeywordsMatch) {
+              technologies = techKeywordsMatch[1].split(/[,|]/).map(t => t.trim());
+              lineUsedForFields = true;
+            } else if (bracketMatch) {
+              technologies = bracketMatch[1].split(/[,|]/).map(t => t.trim());
+              lineUsedForFields = true;
+            }
+          }
         }
       }
     }
     
     if (!name && group.length > 0) {
-      name = cleanMetadata(group[0].replace(/https?:\/\/[^\s]+/g, '').replace(/[-•*+]/g, '').trim());
+      const lineWithoutUrls = group[0].replace(/https?:\/\/[^\s]+/g, '').replace(/[-•*+]/g, '').trim();
+      const { cleanedText } = extractAndStripDates(lineWithoutUrls);
+      name = cleanMetadata(cleanedText);
     }
     
     projects.push({
