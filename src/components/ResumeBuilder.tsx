@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, Download, Save, Eye, EyeOff } from 'lucide-react';
+import { Moon, Sun, Download, Save, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -126,6 +126,38 @@ export const ResumeBuilder = () => {
       description: "Your resume has been saved successfully!"
     });
   };
+  const handleClearData = () => {
+    const emptyData: ResumeData = {
+      personalInfo: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        linkedin: '',
+        github: '',
+        address: ''
+      },
+      profilePicture: '',
+      summary: '',
+      education: [],
+      experience: [],
+      skills: [],
+      projects: [],
+      certifications: [],
+      languages: [],
+      programmingLanguages: [],
+      interests: [],
+      customSections: []
+    };
+    
+    setResumeData(emptyData);
+    localStorage.removeItem('resumeData');
+    
+    toast({
+      title: "Data Cleared",
+      description: "All resume fields have been reset successfully."
+    });
+  };
 
   /**
    * PDF export handler with error handling and user feedback
@@ -228,6 +260,10 @@ export const ResumeBuilder = () => {
               <Button onClick={handleSave} variant="outline" size="sm" className="flex-shrink-0 h-8 px-2 sm:px-3">
                 <Save className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Save</span>
+              </Button>
+              <Button onClick={handleClearData} variant="destructive" size="sm" className="flex-shrink-0 h-8 px-2 sm:px-3">
+                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Clear</span>
               </Button>
               <Button onClick={handleExportPDF} size="sm" className="flex-shrink-0 h-8 px-2 sm:px-3">
                 <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />

@@ -144,6 +144,22 @@ export const extractTextFromDOCX = async (arrayBuffer: ArrayBuffer): Promise<str
 export const parseResumeText = (text: string): Partial<ResumeData> => {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
   
+  const cleanMetadata = (textVal: string): string => {
+    let cleaned = textVal;
+    // Match and remove common date range formats like "2020 - 2024", "July 2020 - Present", etc.
+    const dateRangeRegex = /([a-z]+\s+\d{4}|\d{4}|\d{1,2}\/\d{2,4})\s*[-–—to\s]+\s*([a-z]+\s+\d{4}|\d{4}|\d{1,2}\/\d{2,4}|present|current)/i;
+    const singleDateRegex = /\b([a-z]+\s+\d{4}|\d{4})\b/i;
+    
+    cleaned = cleaned.replace(dateRangeRegex, '');
+    cleaned = cleaned.replace(singleDateRegex, '');
+    // Remove GPA patterns
+    cleaned = cleaned.replace(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/i, '');
+    // Clean up empty parentheses/brackets and leading/trailing separators/whitespace
+    cleaned = cleaned.replace(/\(\s*\)/g, '').replace(/\[\s*\]/g, '');
+    cleaned = cleaned.replace(/^[-•*+|,\s()\[\]]+|[-•*+|,\s()\[\]]+$/g, '');
+    return cleaned.trim();
+  };
+  
   const SECTION_HEADERS = {
     summary: /^(?:professional\s+)?summary|objective|executive\s+summary|about\s+me|profile$/i,
     education: /^education|academic(?:\s+background|\s+profile|\s+record)?$/i,
@@ -391,15 +407,18 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
           lineUsedForFields = true;
         }
         if (isDegree) {
-          degree = part;
-          const fieldMatch = part.match(/(?:in|of)\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
+          degree = cleanMetadata(part);
+          let fieldMatch = part.match(/\bin\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
+          if (!fieldMatch) {
+            fieldMatch = part.match(/(?<!bachelor|master|associate|doctor|science)\s+of\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
+          }
           if (fieldMatch) {
-            fieldOfStudy = fieldMatch[1].trim();
+            fieldOfStudy = cleanMetadata(fieldMatch[1].trim());
           }
           lineUsedForFields = true;
         }
         if (isInst) {
-          institution = part;
+          institution = cleanMetadata(part);
           lineUsedForFields = true;
         }
       }
@@ -407,7 +426,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       if (!lineUsedForFields) {
         const wordCount = line.split(/\s+/).length;
         if (wordCount > 1 && !institution && /education|study|school|college|university/i.test(line)) {
-          institution = line;
+          institution = cleanMetadata(line);
         } else {
           descLines.push(line);
         }
@@ -415,15 +434,20 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     }
     
     if (!institution && group.length > 0) {
-      const fallback = group.find(l => !/bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\./i.test(l) && !extractDateRange(l).start);
-      institution = fallback || group[0];
+      const fallback = group.find(l => 
+        !/bachelor|master|b\.tech|m\.tech|b\.s\.|b\.e\.|m\.s\.|ph\.d\./i.test(l) && 
+        !extractDateRange(l).start &&
+        !/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)/i.test(l) &&
+        !/^[-•*+]\s*/.test(l)
+      );
+      institution = cleanMetadata(fallback || group[0]);
     }
     
     education.push({
       id: `imported-edu-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      institution: institution.trim(),
-      degree: degree.trim(),
-      fieldOfStudy: fieldOfStudy.trim(),
+      institution: cleanMetadata(institution),
+      degree: cleanMetadata(degree),
+      fieldOfStudy: cleanMetadata(fieldOfStudy),
       startDate,
       endDate,
       cgpa,
@@ -497,15 +521,15 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
           lineUsedForFields = true;
         }
         if (hasPosition) {
-          position = part;
+          position = cleanMetadata(part);
           lineUsedForFields = true;
         }
         if (hasCompany && !hasPosition) {
-          company = part;
+          company = cleanMetadata(part);
           lineUsedForFields = true;
         }
         if (hasLocation && !hasPosition && !hasCompany) {
-          location = part;
+          location = cleanMetadata(part);
           lineUsedForFields = true;
         }
       }
@@ -513,9 +537,9 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       if (!lineUsedForFields) {
         const wordCount = line.split(/\s+/).length;
         if (wordCount > 0 && wordCount < 5 && !position && /developer|engineer|intern|manager|lead|analyst|consultant/i.test(line)) {
-          position = line;
+          position = cleanMetadata(line);
         } else if (wordCount > 0 && wordCount < 6 && !company && !line.includes(' ')) {
-          company = line;
+          company = cleanMetadata(line);
         } else {
           descLines.push(line);
         }
@@ -523,16 +547,23 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     }
     
     if (!position && group.length > 0) {
-      position = group[0];
+      const fallbackPos = group.find(l => !/^[-•*+]\s*/.test(l) && !extractDateRange(l).start);
+      position = cleanMetadata(fallbackPos || group[0]);
     }
     if (!company && group.length > 1) {
-      company = group[1];
+      const fallbackCompany = group.find((l, idx) => 
+        idx > 0 && 
+        !/^[-•*+]\s*/.test(l) && 
+        !extractDateRange(l).start &&
+        !/developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator/i.test(l)
+      );
+      company = cleanMetadata(fallbackCompany || group[1]);
     }
     
     experience.push({
       id: `imported-exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      company: company.trim(),
-      position: position.trim(),
+      company: cleanMetadata(company),
+      position: cleanMetadata(position),
       startDate,
       endDate,
       current,
@@ -615,7 +646,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       
       if (!lineUsedForFields) {
         if (!name && line.length < 50 && !line.includes(' ')) {
-          name = line;
+          name = cleanMetadata(line);
         } else {
           descLines.push(line);
         }
@@ -623,12 +654,12 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     }
     
     if (!name && group.length > 0) {
-      name = group[0].replace(/https?:\/\/[^\s]+/g, '').replace(/[-•*+]/g, '').trim();
+      name = cleanMetadata(group[0].replace(/https?:\/\/[^\s]+/g, '').replace(/[-•*+]/g, '').trim());
     }
     
     projects.push({
       id: `imported-proj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: name.trim(),
+      name: cleanMetadata(name),
       description: cleanAndDeduplicateLines(descLines).join('\n').trim(),
       technologies,
       link,
