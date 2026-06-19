@@ -10,6 +10,10 @@ interface ResumePreviewProps {
   onPageCountCalculated?: (pageCount: number) => void;
   fontFamily?: string;
   template?: string;
+  lineHeight?: number;
+  pageMargin?: number;
+  sectionSpacing?: number;
+  sectionOrder?: string[];
 }
 
 type ResumeBlock = 
@@ -23,8 +27,18 @@ type ResumeBlock =
   | { type: 'certification', item: Certification }
   | { type: 'customSection', item: CustomSection };
 
-const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: number): number => {
+const estimateBlockHeight = (
+  block: ResumeBlock, 
+  data: ResumeData, 
+  fontSize: number, 
+  lineHeight: number, 
+  sectionSpacing: number
+): number => {
   const scale = fontSize / 12;
+  const lineSpacing = lineHeight / 1.3;
+  const extraSpacing = sectionSpacing - 12; // Deviation from default gap-3 (12px)
+  const baseSpacing = (h: number) => h * scale * lineSpacing + extraSpacing;
+
   switch (block.type) {
     case 'header':
       return (data.profilePicture ? 120 : 90) * scale;
@@ -32,7 +46,7 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
       const text = data.summary || '';
       const charsPerLine = Math.floor(85 / scale);
       const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-      return (20 + lines * 13) * scale;
+      return baseSpacing(20 + lines * 13);
     }
     case 'skills': {
       let height = 20;
@@ -46,13 +60,13 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
           height += lines * 14 + 3;
         }
       });
-      return height * scale;
+      return baseSpacing(height);
     }
     case 'interests': {
       const text = data.interests.map(interest => interest.name).join(', ');
       const charsPerLine = Math.floor(85 / scale);
       const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-      return (20 + lines * 13) * scale;
+      return baseSpacing(20 + lines * 13);
     }
     case 'education': {
       const edu = block.item;
@@ -66,7 +80,7 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         });
         textHeight += linesCount * 12;
       }
-      return textHeight * scale;
+      return baseSpacing(textHeight);
     }
     case 'experience': {
       const exp = block.item;
@@ -80,7 +94,7 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         });
         textHeight += linesCount * 12;
       }
-      return textHeight * scale;
+      return baseSpacing(textHeight);
     }
     case 'project': {
       const proj = block.item;
@@ -99,10 +113,10 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         const techLines = Math.max(1, Math.ceil(techLength / charsPerLine));
         textHeight += techLines * 12;
       }
-      return textHeight * scale;
+      return baseSpacing(textHeight);
     }
     case 'certification':
-      return 35 * scale;
+      return baseSpacing(35);
     case 'customSection': {
       const section = block.item;
       let textHeight = 35;
@@ -115,15 +129,15 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         });
         textHeight += linesCount * 12;
       }
-      return textHeight * scale;
+      return baseSpacing(textHeight);
     }
     default:
-      return 35 * scale;
+      return baseSpacing(35);
   }
 };
 
 export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
-  ({ data, fontSize = 12, pageCount = 1, onPageCountCalculated, fontFamily = 'inter', template = 'classic' }, ref) => {
+  ({ data, fontSize = 12, pageCount = 1, onPageCountCalculated, fontFamily = 'inter', template = 'classic', lineHeight = 1.3, pageMargin = 32, sectionSpacing = 12, sectionOrder }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [scale, setScale] = React.useState(1);
 
@@ -198,46 +212,47 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
 
     const dynamicStyles = {
       fontSize: `${fontSize}px`,
-      lineHeight: fontSize <= 10 ? '1.1' : fontSize <= 14 ? '1.3' : '1.4',
+      lineHeight: lineHeight.toString(),
       fontFamily: fontFamilyStyles[fontFamily] || fontFamilyStyles.inter
     };
 
     const headerFontSize = Math.max(fontSize + 8, 18);
     const sectionHeaderFontSize = Math.max(fontSize + 2, 14);
 
-    // 1. Gather all blocks to paginate
+    // 1. Gather all blocks to paginate according to sectionOrder custom ordering
     const blocks: ResumeBlock[] = [];
     blocks.push({ type: 'header' });
-    if (data.summary) blocks.push({ type: 'summary' });
-    if (data.skills && data.skills.length > 0) blocks.push({ type: 'skills' });
-
-    if (data.education) {
-      data.education.forEach(item => blocks.push({ type: 'education', item }));
-    }
-    if (data.experience) {
-      data.experience.forEach(item => blocks.push({ type: 'experience', item }));
-    }
-    if (data.projects) {
-      data.projects.forEach(item => blocks.push({ type: 'project', item }));
-    }
-    if (data.certifications) {
-      data.certifications.forEach(item => blocks.push({ type: 'certification', item }));
-    }
-    if (data.interests && data.interests.length > 0) {
-      blocks.push({ type: 'interests' });
-    }
-    if (data.customSections) {
-      data.customSections.forEach(item => blocks.push({ type: 'customSection', item }));
-    }
+    
+    const order = sectionOrder || ['summary', 'skills', 'education', 'experience', 'projects', 'certifications', 'interests', 'customSections'];
+    
+    order.forEach(secName => {
+      if (secName === 'summary' && data.summary) {
+        blocks.push({ type: 'summary' });
+      } else if (secName === 'skills' && data.skills && data.skills.length > 0) {
+        blocks.push({ type: 'skills' });
+      } else if (secName === 'education' && data.education) {
+        data.education.forEach(item => blocks.push({ type: 'education', item }));
+      } else if (secName === 'experience' && data.experience) {
+        data.experience.forEach(item => blocks.push({ type: 'experience', item }));
+      } else if (secName === 'projects' && data.projects) {
+        data.projects.forEach(item => blocks.push({ type: 'project', item }));
+      } else if (secName === 'certifications' && data.certifications) {
+        data.certifications.forEach(item => blocks.push({ type: 'certification', item }));
+      } else if (secName === 'interests' && data.interests && data.interests.length > 0) {
+        blocks.push({ type: 'interests' });
+      } else if (secName === 'customSections' && data.customSections) {
+        data.customSections.forEach(item => blocks.push({ type: 'customSection', item }));
+      }
+    });
 
     // 2. Distribute blocks across pages dynamically
     const pages: ResumeBlock[][] = [];
     let currentPageBlocks: ResumeBlock[] = [];
     let currentPageHeight = 0;
-    const pageHeightLimit = 980; // Limit content within page boundaries (Letter printable area is ~992px)
+    const pageHeightLimit = 1056 - pageMargin * 2; // Dynamic print height limit
 
     for (const block of blocks) {
-      const height = estimateBlockHeight(block, data, fontSize);
+      const height = estimateBlockHeight(block, data, fontSize, lineHeight, sectionSpacing);
       if (currentPageHeight + height > pageHeightLimit && currentPageBlocks.length > 0) {
         pages.push(currentPageBlocks);
         currentPageBlocks = [];
@@ -829,34 +844,35 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
             {pages.map((pageBlocks, index) => (
               <Card 
                 key={index}
-                className={`mx-auto bg-white text-black relative shadow-lg border border-gray-300 pdf-page overflow-hidden flex flex-col justify-start ${template === 'minimalist' ? 'p-5' : 'p-8'}`} 
+                className="mx-auto bg-white text-black relative shadow-lg border border-gray-300 pdf-page overflow-hidden flex flex-col justify-start" 
                 style={{
                   ...dynamicStyles,
                   width: '8.5in',
                   height: '11in',
                   minHeight: '11in',
                   maxHeight: '11in',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  padding: `${pageMargin}px`
                 }}
               >
                 <div className="relative z-10 w-full flex-1 flex flex-col justify-start">
                   {template === 'two-column' ? (
-                    <div className="flex gap-6 h-full w-full flex-1">
+                    <div className="flex h-full w-full flex-1" style={{ gap: `${sectionSpacing}px` }}>
                       {/* Left Sidebar (30% width) */}
-                      <div className="w-[30%] border-r border-gray-200 pr-4 space-y-3 flex flex-col justify-start">
+                      <div className="w-[30%] border-r border-gray-200 pr-4 flex flex-col justify-start" style={{ gap: `${sectionSpacing}px` }}>
                         {pageBlocks
                           .filter(b => ['header', 'skills', 'interests'].includes(b.type))
                           .map((block) => renderBlock(block, pageBlocks.indexOf(block), pageBlocks))}
                       </div>
                       {/* Right Main Body (70% width) */}
-                      <div className="w-[70%] space-y-3 flex flex-col justify-start">
+                      <div className="w-[70%] flex flex-col justify-start" style={{ gap: `${sectionSpacing}px` }}>
                         {pageBlocks
                           .filter(b => !['header', 'skills', 'interests'].includes(b.type))
                           .map((block) => renderBlock(block, pageBlocks.indexOf(block), pageBlocks))}
                       </div>
                     </div>
                   ) : (
-                    <div className={`w-full flex-1 flex flex-col justify-start ${template === 'minimalist' ? 'space-y-1.5' : 'space-y-3'}`}>
+                    <div className="w-full flex-1 flex flex-col justify-start" style={{ gap: `${sectionSpacing}px` }}>
                       {pageBlocks.map((block, bIdx) => renderBlock(block, bIdx, pageBlocks))}
                     </div>
                   )}

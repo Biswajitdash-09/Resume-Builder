@@ -7,6 +7,7 @@ import { ZoomIn, ZoomOut, Upload, FileText, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ResumeData } from '../types/resume';
 import { extractTextFromPDF, extractTextFromDOCX, parseResumeText } from '../utils/resumeParser';
+import { translateJSONResumeToInternal, translateInternalToJSONResume } from '../utils/jsonResumeTranslator';
 
 interface ResumeControlsProps {
   fontSize: number;
@@ -17,6 +18,14 @@ interface ResumeControlsProps {
   onTemplateChange: (template: string) => void;
   onImportResume: (data: any) => void;
   resumeData: ResumeData;
+  lineHeight: number;
+  onLineHeightChange: (lh: number) => void;
+  pageMargin: number;
+  onPageMarginChange: (margin: number) => void;
+  sectionSpacing: number;
+  onSectionSpacingChange: (spacing: number) => void;
+  sectionOrder: string[];
+  onSectionOrderChange: (order: string[]) => void;
 }
 
 export const ResumeControls: React.FC<ResumeControlsProps> = ({
@@ -27,7 +36,15 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
   template,
   onTemplateChange,
   onImportResume,
-  resumeData
+  resumeData,
+  lineHeight,
+  onLineHeightChange,
+  pageMargin,
+  onPageMarginChange,
+  sectionSpacing,
+  onSectionSpacingChange,
+  sectionOrder,
+  onSectionOrderChange
 }) => {
   const [isImporting, setIsImporting] = useState(false);
   const { toast } = useToast();
@@ -55,11 +72,20 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
         reader.onload = (e) => {
           try {
             const data = JSON.parse(e.target?.result as string);
-            onImportResume(data);
-            toast({
-              title: "Resume Data Imported",
-              description: "JSON configuration loaded successfully."
-            });
+            if (data && (data.basics || data.work || (data.education && !Array.isArray(data.personalInfo)))) {
+              const parsed = translateJSONResumeToInternal(data);
+              onImportResume(parsed);
+              toast({
+                title: "JSON Resume Imported",
+                description: "Standard JSON Resume configuration loaded and translated successfully."
+              });
+            } else {
+              onImportResume(data);
+              toast({
+                title: "Resume Data Imported",
+                description: "JSON configuration loaded successfully."
+              });
+            }
           } catch (err) {
             console.error(err);
             toast({
@@ -163,6 +189,35 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
     }
   };
 
+  const handleExportJSONResume = () => {
+    try {
+      const jsonResumeData = translateInternalToJSONResume(resumeData);
+      const dataStr = JSON.stringify(jsonResumeData, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+      
+      const firstName = resumeData.personalInfo?.firstName || 'Resume';
+      const lastName = resumeData.personalInfo?.lastName || 'Data';
+      const exportFileDefaultName = `${firstName}_${lastName}_json_resume.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+      
+      toast({
+        title: "JSON Resume Exported",
+        description: "Your standard JSON Resume has been downloaded successfully!"
+      });
+    } catch (error) {
+      console.error('Error exporting JSON Resume:', error);
+      toast({
+        title: "Export Failed",
+        description: "Could not export JSON Resume.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <Card className="p-2 sm:p-4 mb-3 sm:mb-6">
       <div className="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
@@ -254,17 +309,127 @@ export const ResumeControls: React.FC<ResumeControlsProps> = ({
           />
         </div>
 
+        {/* Line Height Customization */}
+        <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Line Height:</span>
+          <input 
+            type="range" 
+            min="1.0" 
+            max="1.8" 
+            step="0.05" 
+            value={lineHeight} 
+            onChange={e => onLineHeightChange(parseFloat(e.target.value))}
+            className="w-20 accent-primary" 
+          />
+          <span className="text-xs min-w-[2rem]">{lineHeight}</span>
+        </div>
+
+        {/* Page Margin Customization */}
+        <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Margins:</span>
+          <input 
+            type="range" 
+            min="12" 
+            max="48" 
+            step="2" 
+            value={pageMargin} 
+            onChange={e => onPageMarginChange(parseInt(e.target.value, 10))}
+            className="w-20 accent-primary" 
+          />
+          <span className="text-xs min-w-[2rem]">{pageMargin}px</span>
+        </div>
+
+        {/* Section Spacing Customization */}
+        <div className="flex items-center gap-2 justify-center sm:justify-start">
+          <span className="text-xs sm:text-sm font-medium whitespace-nowrap">Section Spacing:</span>
+          <input 
+            type="range" 
+            min="4" 
+            max="24" 
+            step="2" 
+            value={sectionSpacing} 
+            onChange={e => onSectionSpacingChange(parseInt(e.target.value, 10))}
+            className="w-20 accent-primary" 
+          />
+          <span className="text-xs min-w-[2rem]">{sectionSpacing}px</span>
+        </div>
+
         {/* Resume Export JSON */}
-        <div className="flex items-center justify-center sm:justify-start">
+        <div className="flex items-center justify-center sm:justify-start gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportJSON}
             className="h-8 px-3"
+            title="Export in app internal JSON format"
           >
             <Download className="h-3 w-3 mr-2" />
             <span className="text-xs sm:text-sm">Export Data</span>
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportJSONResume}
+            className="h-8 px-3 border-teal-200 hover:bg-teal-50 dark:border-teal-900 dark:hover:bg-teal-950"
+            title="Export in standard JSON Resume schema format"
+          >
+            <Download className="h-3 w-3 mr-2 text-teal-600 dark:text-teal-400" />
+            <span className="text-xs sm:text-sm text-teal-600 dark:text-teal-400">Export JSON Resume</span>
+          </Button>
+        </div>
+
+        {/* Section Reordering */}
+        <div className="flex flex-col space-y-1.5 w-full pt-2 border-t border-dashed">
+          <span className="text-xs sm:text-sm font-medium">Drag & Order Sections:</span>
+          <div className="flex flex-wrap gap-2">
+            {sectionOrder.map((section, idx) => {
+              const handleMove = (direction: 'up' | 'down') => {
+                const newOrder = [...sectionOrder];
+                if (direction === 'up' && idx > 0) {
+                  const temp = newOrder[idx];
+                  newOrder[idx] = newOrder[idx - 1];
+                  newOrder[idx - 1] = temp;
+                } else if (direction === 'down' && idx < sectionOrder.length - 1) {
+                  const temp = newOrder[idx];
+                  newOrder[idx] = newOrder[idx + 1];
+                  newOrder[idx + 1] = temp;
+                }
+                onSectionOrderChange(newOrder);
+              };
+              
+              const displayName = section === 'summary' ? 'Summary' :
+                                  section === 'skills' ? 'Skills' :
+                                  section === 'education' ? 'Education' :
+                                  section === 'experience' ? 'Experience' :
+                                  section === 'projects' ? 'Projects' :
+                                  section === 'certifications' ? 'Certifications' :
+                                  section === 'interests' ? 'Interests' : 'Custom Sections';
+                                  
+              return (
+                <div key={section} className="flex items-center gap-1.5 bg-secondary text-secondary-foreground text-[10px] sm:text-xs px-2 py-1 rounded-md border border-input">
+                  <span>{displayName}</span>
+                  <div className="flex items-center gap-0.5 ml-1">
+                    <button 
+                      onClick={() => handleMove('up')} 
+                      disabled={idx === 0}
+                      className="hover:text-primary disabled:opacity-30 p-0.5"
+                      title="Move Left"
+                    >
+                      ←
+                    </button>
+                    <button 
+                      onClick={() => handleMove('down')} 
+                      disabled={idx === sectionOrder.length - 1}
+                      className="hover:text-primary disabled:opacity-30 p-0.5"
+                      title="Move Right"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </Card>

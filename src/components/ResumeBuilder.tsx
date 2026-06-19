@@ -57,6 +57,31 @@ export const ResumeBuilder = () => {
   const [template, setTemplate] = useState<string>(() => {
     return localStorage.getItem('resumeTemplate') || 'classic';
   });
+
+  // Layout spacing and ordering states
+  const [lineHeight, setLineHeight] = useState<number>(() => {
+    const saved = localStorage.getItem('resumeLineHeight');
+    return saved ? parseFloat(saved) : 1.3;
+  });
+  const [pageMargin, setPageMargin] = useState<number>(() => {
+    const saved = localStorage.getItem('resumePageMargin');
+    return saved ? parseInt(saved, 10) : 32;
+  });
+  const [sectionSpacing, setSectionSpacing] = useState<number>(() => {
+    const saved = localStorage.getItem('resumeSectionSpacing');
+    return saved ? parseInt(saved, 10) : 12;
+  });
+  const [sectionOrder, setSectionOrder] = useState<string[]>(() => {
+    const saved = localStorage.getItem('resumeSectionOrder');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved section order", e);
+      }
+    }
+    return ['summary', 'skills', 'education', 'experience', 'projects', 'certifications', 'interests', 'customSections'];
+  });
   
   // Main resume data state - contains all user input
   const [resumeData, setResumeData] = useState<ResumeData>(() => {
@@ -107,9 +132,13 @@ export const ResumeBuilder = () => {
       localStorage.setItem('resumePageCount', pageCount.toString());
       localStorage.setItem('resumeFontFamily', fontFamily);
       localStorage.setItem('resumeTemplate', template);
+      localStorage.setItem('resumeLineHeight', lineHeight.toString());
+      localStorage.setItem('resumePageMargin', pageMargin.toString());
+      localStorage.setItem('resumeSectionSpacing', sectionSpacing.toString());
+      localStorage.setItem('resumeSectionOrder', JSON.stringify(sectionOrder));
     }, 10000);
     return () => clearInterval(interval);
-  }, [resumeData, fontSize, pageCount, fontFamily, template]);
+  }, [resumeData, fontSize, pageCount, fontFamily, template, lineHeight, pageMargin, sectionSpacing, sectionOrder]);
 
   /**
    * Dark mode toggle - applies theme to entire document and persists
@@ -132,6 +161,10 @@ export const ResumeBuilder = () => {
     localStorage.setItem('resumePageCount', pageCount.toString());
     localStorage.setItem('resumeFontFamily', fontFamily);
     localStorage.setItem('resumeTemplate', template);
+    localStorage.setItem('resumeLineHeight', lineHeight.toString());
+    localStorage.setItem('resumePageMargin', pageMargin.toString());
+    localStorage.setItem('resumeSectionSpacing', sectionSpacing.toString());
+    localStorage.setItem('resumeSectionOrder', JSON.stringify(sectionOrder));
     toast({
       title: "Resume Saved",
       description: "Your resume has been saved successfully!"
@@ -162,11 +195,19 @@ export const ResumeBuilder = () => {
     };
     
     setResumeData(emptyData);
+    setLineHeight(1.3);
+    setPageMargin(32);
+    setSectionSpacing(12);
+    setSectionOrder(['summary', 'skills', 'education', 'experience', 'projects', 'certifications', 'interests', 'customSections']);
     localStorage.removeItem('resumeData');
+    localStorage.removeItem('resumeLineHeight');
+    localStorage.removeItem('resumePageMargin');
+    localStorage.removeItem('resumeSectionSpacing');
+    localStorage.removeItem('resumeSectionOrder');
     
     toast({
       title: "Data Cleared",
-      description: "All resume fields have been reset successfully."
+      description: "All resume fields and layout settings have been reset successfully."
     });
   };
 
@@ -330,6 +371,14 @@ export const ResumeBuilder = () => {
             onTemplateChange={setTemplate}
             onImportResume={handleImportResume}
             resumeData={resumeData}
+            lineHeight={lineHeight}
+            onLineHeightChange={setLineHeight}
+            pageMargin={pageMargin}
+            onPageMarginChange={setPageMargin}
+            sectionSpacing={sectionSpacing}
+            onSectionSpacingChange={setSectionSpacing}
+            sectionOrder={sectionOrder}
+            onSectionOrderChange={setSectionOrder}
           />
 
           {/* Two-column layout: Forms on left, Preview on right */}
@@ -406,6 +455,10 @@ export const ResumeBuilder = () => {
                 onPageCountCalculated={setActualPageCount}
                 fontFamily={fontFamily}
                 template={template}
+                lineHeight={lineHeight}
+                pageMargin={pageMargin}
+                sectionSpacing={sectionSpacing}
+                sectionOrder={sectionOrder}
               />
             </div>
           </div>
