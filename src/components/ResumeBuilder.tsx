@@ -35,36 +35,54 @@ import { useToast } from '@/hooks/use-toast';
  */
 export const ResumeBuilder = () => {
   // UI State Management
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('resumeDarkMode') === 'true';
+  });
   const [showPreview, setShowPreview] = useState(false); // Default to false on mobile
   
   // Resume Configuration
-  const [fontSize, setFontSize] = useState(12); // Font size for PDF export
-  const [pageCount, setPageCount] = useState(1); // Target page count
+  const [fontSize, setFontSize] = useState<number>(() => {
+    const saved = localStorage.getItem('resumeFontSize');
+    return saved ? parseInt(saved, 10) : 12;
+  }); // Font size for PDF export
+  const [pageCount, setPageCount] = useState<number>(() => {
+    const saved = localStorage.getItem('resumePageCount');
+    return saved ? parseInt(saved, 10) : 1;
+  }); // Target page count
   const [actualPageCount, setActualPageCount] = useState(1); // Actual calculated page count
   
   // Main resume data state - contains all user input
-  const [resumeData, setResumeData] = useState<ResumeData>({
-    personalInfo: {
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      linkedin: '',
-      github: '',
-      address: ''
-    },
-    profilePicture: '',
-    summary: '',
-    education: [],
-    experience: [],
-    skills: [],
-    projects: [],
-    certifications: [],
-    languages: [],
-    programmingLanguages: [],
-    interests: [],
-    customSections: []
+  const [resumeData, setResumeData] = useState<ResumeData>(() => {
+    const saved = localStorage.getItem('resumeData');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved resume data", e);
+      }
+    }
+    return {
+      personalInfo: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        linkedin: '',
+        github: '',
+        address: ''
+      },
+      profilePicture: '',
+      summary: '',
+      education: [],
+      experience: [],
+      skills: [],
+      projects: [],
+      certifications: [],
+      languages: [],
+      programmingLanguages: [],
+      interests: [],
+      customSections: []
+    };
   });
   
   const { toast } = useToast();
@@ -85,7 +103,7 @@ export const ResumeBuilder = () => {
   }, [resumeData, fontSize, pageCount]);
 
   /**
-   * Dark mode toggle - applies theme to entire document
+   * Dark mode toggle - applies theme to entire document and persists
    */
   useEffect(() => {
     if (isDarkMode) {
@@ -93,6 +111,7 @@ export const ResumeBuilder = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem('resumeDarkMode', isDarkMode.toString());
   }, [isDarkMode]);
 
   /**

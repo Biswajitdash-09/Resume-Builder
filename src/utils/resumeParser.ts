@@ -62,7 +62,7 @@ export const normalizeDate = (dateStr: string): string => {
   }
   
   // Try mapping common word/digits structures (e.g. "May 2024", "05/2024", "Sep. 2022")
-  const monthYearRegex = /([a-z]+|\d{1,2})[-/.\s]+(\d{4}|\d{2})/i;
+  const monthYearRegex = /([a-z]+|\d{1,2})[-/.,\s]+(\d{4}|\d{2})/i;
   const match = clean.match(monthYearRegex);
   if (match) {
     let month = match[1];
@@ -275,8 +275,8 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
   for (const line of sections.skills) {
     let skillItemsString = line;
     if (line.includes(':')) {
-      const parts = line.split(':');
-      skillItemsString = parts[1];
+      const colonIndex = line.indexOf(':');
+      skillItemsString = line.slice(colonIndex + 1);
     }
     
     // Split by commas, semicolons, bullets, or pipes

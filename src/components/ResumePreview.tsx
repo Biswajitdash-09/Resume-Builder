@@ -21,14 +21,16 @@ type ResumeBlock =
   | { type: 'certification', item: Certification }
   | { type: 'customSection', item: CustomSection };
 
-const estimateBlockHeight = (block: ResumeBlock, data: ResumeData): number => {
+const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: number): number => {
+  const scale = fontSize / 12;
   switch (block.type) {
     case 'header':
-      return data.profilePicture ? 145 : 115;
+      return (data.profilePicture ? 145 : 115) * scale;
     case 'summary': {
       const text = data.summary || '';
-      const lines = Math.max(1, Math.ceil(text.length / 85));
-      return 35 + lines * 15;
+      const charsPerLine = Math.floor(85 / scale);
+      const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
+      return (35 + lines * 15) * scale;
     }
     case 'skills': {
       let height = 35;
@@ -37,16 +39,18 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData): number => {
         const categorySkills = data.skills.filter(s => s.category === category);
         if (categorySkills.length > 0) {
           const text = `${category}: ${categorySkills.map(s => s.name).join(', ')}`;
-          const lines = Math.max(1, Math.ceil(text.length / 85));
+          const charsPerLine = Math.floor(85 / scale);
+          const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
           height += lines * 16 + 4;
         }
       });
-      return height;
+      return height * scale;
     }
     case 'interests': {
       const text = data.interests.map(interest => interest.name).join(', ');
-      const lines = Math.max(1, Math.ceil(text.length / 85));
-      return 35 + lines * 15;
+      const charsPerLine = Math.floor(85 / scale);
+      const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
+      return (35 + lines * 15) * scale;
     }
     case 'education': {
       const edu = block.item;
@@ -54,12 +58,13 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData): number => {
       if (edu.description) {
         const lines = edu.description.split('\n');
         let linesCount = 0;
+        const charsPerLine = Math.floor(80 / scale);
         lines.forEach(line => {
-          linesCount += Math.max(1, Math.ceil(line.length / 80));
+          linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
         textHeight += linesCount * 14;
       }
-      return textHeight;
+      return textHeight * scale;
     }
     case 'experience': {
       const exp = block.item;
@@ -67,48 +72,51 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData): number => {
       if (exp.description) {
         const lines = exp.description.split('\n');
         let linesCount = 0;
+        const charsPerLine = Math.floor(80 / scale);
         lines.forEach(line => {
-          linesCount += Math.max(1, Math.ceil(line.length / 80));
+          linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
         textHeight += linesCount * 14;
       }
-      return textHeight;
+      return textHeight * scale;
     }
     case 'project': {
       const proj = block.item;
       let textHeight = 60;
+      const charsPerLine = Math.floor(80 / scale);
       if (proj.description) {
         const lines = proj.description.split('\n');
         let linesCount = 0;
         lines.forEach(line => {
-          linesCount += Math.max(1, Math.ceil(line.length / 80));
+          linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
         textHeight += linesCount * 14;
       }
       if (proj.technologies && proj.technologies.length > 0) {
         const techLength = proj.technologies.join(', ').length;
-        const techLines = Math.max(1, Math.ceil(techLength / 80));
+        const techLines = Math.max(1, Math.ceil(techLength / charsPerLine));
         textHeight += techLines * 14;
       }
-      return textHeight;
+      return textHeight * scale;
     }
     case 'certification':
-      return 55;
+      return 55 * scale;
     case 'customSection': {
       const section = block.item;
       let textHeight = 45;
       if (section.content) {
         const lines = section.content.split('\n');
         let linesCount = 0;
+        const charsPerLine = Math.floor(80 / scale);
         lines.forEach(line => {
-          linesCount += Math.max(1, Math.ceil(line.length / 80));
+          linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
         textHeight += linesCount * 14;
       }
-      return textHeight;
+      return textHeight * scale;
     }
     default:
-      return 50;
+      return 50 * scale;
   }
 };
 
@@ -216,7 +224,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
     const pageHeightLimit = 900; // Limit content within page boundaries (Letter is 1056px height)
 
     for (const block of blocks) {
-      const height = estimateBlockHeight(block, data);
+      const height = estimateBlockHeight(block, data, fontSize);
       if (currentPageHeight + height > pageHeightLimit && currentPageBlocks.length > 0) {
         pages.push(currentPageBlocks);
         currentPageBlocks = [];
