@@ -27,15 +27,15 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
   const scale = fontSize / 12;
   switch (block.type) {
     case 'header':
-      return (data.profilePicture ? 145 : 115) * scale;
+      return (data.profilePicture ? 120 : 90) * scale;
     case 'summary': {
       const text = data.summary || '';
       const charsPerLine = Math.floor(85 / scale);
       const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-      return (35 + lines * 15) * scale;
+      return (20 + lines * 13) * scale;
     }
     case 'skills': {
-      let height = 35;
+      let height = 20;
       const categories = ['Technical Subjects', 'Programming Languages', 'Spoken Languages', 'Soft Skills', 'Frameworks', 'Dev Tools'];
       categories.forEach(category => {
         const categorySkills = data.skills.filter(s => s.category === category);
@@ -43,7 +43,7 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
           const text = `${category}: ${categorySkills.map(s => s.name).join(', ')}`;
           const charsPerLine = Math.floor(85 / scale);
           const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-          height += lines * 16 + 4;
+          height += lines * 14 + 3;
         }
       });
       return height * scale;
@@ -52,11 +52,11 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
       const text = data.interests.map(interest => interest.name).join(', ');
       const charsPerLine = Math.floor(85 / scale);
       const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-      return (35 + lines * 15) * scale;
+      return (20 + lines * 13) * scale;
     }
     case 'education': {
       const edu = block.item;
-      let textHeight = 50;
+      let textHeight = 35;
       if (edu.description) {
         const lines = edu.description.split('\n');
         let linesCount = 0;
@@ -64,13 +64,13 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         lines.forEach(line => {
           linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
-        textHeight += linesCount * 14;
+        textHeight += linesCount * 12;
       }
       return textHeight * scale;
     }
     case 'experience': {
       const exp = block.item;
-      let textHeight = 70;
+      let textHeight = 50;
       if (exp.description) {
         const lines = exp.description.split('\n');
         let linesCount = 0;
@@ -78,13 +78,13 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         lines.forEach(line => {
           linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
-        textHeight += linesCount * 14;
+        textHeight += linesCount * 12;
       }
       return textHeight * scale;
     }
     case 'project': {
       const proj = block.item;
-      let textHeight = 60;
+      let textHeight = 45;
       const charsPerLine = Math.floor(80 / scale);
       if (proj.description) {
         const lines = proj.description.split('\n');
@@ -92,20 +92,20 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         lines.forEach(line => {
           linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
-        textHeight += linesCount * 14;
+        textHeight += linesCount * 12;
       }
       if (proj.technologies && proj.technologies.length > 0) {
         const techLength = proj.technologies.join(', ').length;
         const techLines = Math.max(1, Math.ceil(techLength / charsPerLine));
-        textHeight += techLines * 14;
+        textHeight += techLines * 12;
       }
       return textHeight * scale;
     }
     case 'certification':
-      return 55 * scale;
+      return 35 * scale;
     case 'customSection': {
       const section = block.item;
-      let textHeight = 45;
+      let textHeight = 35;
       if (section.content) {
         const lines = section.content.split('\n');
         let linesCount = 0;
@@ -113,12 +113,12 @@ const estimateBlockHeight = (block: ResumeBlock, data: ResumeData, fontSize: num
         lines.forEach(line => {
           linesCount += Math.max(1, Math.ceil(line.length / charsPerLine));
         });
-        textHeight += linesCount * 14;
+        textHeight += linesCount * 12;
       }
       return textHeight * scale;
     }
     default:
-      return 50 * scale;
+      return 35 * scale;
   }
 };
 
@@ -234,7 +234,7 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
     const pages: ResumeBlock[][] = [];
     let currentPageBlocks: ResumeBlock[] = [];
     let currentPageHeight = 0;
-    const pageHeightLimit = 900; // Limit content within page boundaries (Letter is 1056px height)
+    const pageHeightLimit = 980; // Limit content within page boundaries (Letter printable area is ~992px)
 
     for (const block of blocks) {
       const height = estimateBlockHeight(block, data, fontSize);
@@ -272,11 +272,14 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
       if (template === 'modern') {
         return (
           <h2 
-            className="font-extrabold text-slate-950 mb-2 pb-1 border-b border-slate-300 uppercase tracking-wide flex items-center"
+            className="font-extrabold text-slate-950 mb-2 pb-1 border-b border-slate-300 uppercase tracking-wide"
             style={{ fontSize: `${sectionHeaderFontSize}px` }}
           >
-            <span className="w-1.5 h-4 bg-slate-900 mr-2 rounded-sm inline-block"></span>
-            {title}
+            <span 
+              className="w-1.5 h-4 bg-slate-900 mr-2 rounded-sm inline-block"
+              style={{ verticalAlign: 'middle' }}
+            ></span>
+            <span style={{ verticalAlign: 'middle' }}>{title}</span>
           </h2>
         );
       }
@@ -323,36 +326,56 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                 >
                   {data.personalInfo.firstName} <br/> {data.personalInfo.lastName}
                 </h1>
-                <div className="space-y-2 text-gray-600 text-[10px] leading-relaxed">
+                <div className="space-y-2 text-gray-600 text-[10px] leading-relaxed flex flex-col justify-start">
                   {data.personalInfo.email && (
-                    <div className="flex items-center gap-1.5 break-all">
-                      <Mail className="h-3 w-3 flex-shrink-0" />
-                      <span>{data.personalInfo.email}</span>
-                    </div>
+                    <a 
+                      href={`mailto:${data.personalInfo.email}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="inline-flex items-center gap-1.5 break-all hover:text-gray-900 transition-colors"
+                    >
+                      <Mail className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                      <span className="align-middle">{data.personalInfo.email}</span>
+                    </a>
                   )}
                   {data.personalInfo.phone && (
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="h-3 w-3 flex-shrink-0" />
-                      <span>{data.personalInfo.phone}</span>
-                    </div>
+                    <a 
+                      href={`tel:${data.personalInfo.phone}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="inline-flex items-center gap-1.5 hover:text-gray-900 transition-colors"
+                    >
+                      <Phone className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                      <span className="align-middle">{data.personalInfo.phone}</span>
+                    </a>
                   )}
                   {data.personalInfo.address && (
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span>{data.personalInfo.address}</span>
+                    <div className="inline-flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                      <span className="align-middle">{data.personalInfo.address}</span>
                     </div>
                   )}
                   {data.personalInfo.linkedin && (
-                    <div className="flex items-center gap-1.5 break-all">
-                      <Linkedin className="h-3 w-3 flex-shrink-0" />
-                      <span>{data.personalInfo.linkedin}</span>
-                    </div>
+                    <a 
+                      href={data.personalInfo.linkedin.startsWith('http') ? data.personalInfo.linkedin : `https://${data.personalInfo.linkedin}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="inline-flex items-center gap-1.5 break-all hover:text-gray-900 transition-colors"
+                    >
+                      <Linkedin className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                      <span className="align-middle">{data.personalInfo.linkedin}</span>
+                    </a>
                   )}
                   {data.personalInfo.github && (
-                    <div className="flex items-center gap-1.5 break-all">
-                      <Github className="h-3 w-3 flex-shrink-0" />
-                      <span>{data.personalInfo.github}</span>
-                    </div>
+                    <a 
+                      href={data.personalInfo.github.startsWith('http') ? data.personalInfo.github : `https://${data.personalInfo.github}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="inline-flex items-center gap-1.5 break-all hover:text-gray-900 transition-colors"
+                    >
+                      <Github className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                      <span className="align-middle">{data.personalInfo.github}</span>
+                    </a>
                   )}
                 </div>
               </header>
@@ -371,36 +394,56 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                     </h1>
                     <div className="flex flex-wrap gap-4 text-slate-700 text-xs mt-2">
                       {data.personalInfo.email && (
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-3 w-3 flex-shrink-0" />
-                          <span>{data.personalInfo.email}</span>
-                        </div>
+                        <a 
+                          href={`mailto:${data.personalInfo.email}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="inline-flex items-center gap-1.5 hover:text-slate-950 transition-colors"
+                        >
+                          <Mail className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                          <span className="align-middle">{data.personalInfo.email}</span>
+                        </a>
                       )}
                       {data.personalInfo.phone && (
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3 w-3 flex-shrink-0" />
-                          <span>{data.personalInfo.phone}</span>
-                        </div>
+                        <a 
+                          href={`tel:${data.personalInfo.phone}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="inline-flex items-center gap-1.5 hover:text-slate-950 transition-colors"
+                        >
+                          <Phone className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                          <span className="align-middle">{data.personalInfo.phone}</span>
+                        </a>
                       )}
                       {data.personalInfo.address && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3 flex-shrink-0" />
-                          <span>{data.personalInfo.address}</span>
+                        <div className="inline-flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                          <span className="align-middle">{data.personalInfo.address}</span>
                         </div>
                       )}
                     </div>
                     <div className="flex flex-wrap gap-4 text-slate-700 text-xs mt-1">
                       {data.personalInfo.linkedin && (
-                        <div className="flex items-center gap-1">
-                          <Linkedin className="h-3 w-3 flex-shrink-0" />
-                          <span>{data.personalInfo.linkedin}</span>
-                        </div>
+                        <a 
+                          href={data.personalInfo.linkedin.startsWith('http') ? data.personalInfo.linkedin : `https://${data.personalInfo.linkedin}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="inline-flex items-center gap-1.5 hover:text-slate-950 transition-colors"
+                        >
+                          <Linkedin className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                          <span className="align-middle">{data.personalInfo.linkedin}</span>
+                        </a>
                       )}
                       {data.personalInfo.github && (
-                        <div className="flex items-center gap-1">
-                          <Github className="h-3 w-3 flex-shrink-0" />
-                          <span>{data.personalInfo.github}</span>
-                        </div>
+                        <a 
+                          href={data.personalInfo.github.startsWith('http') ? data.personalInfo.github : `https://${data.personalInfo.github}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="inline-flex items-center gap-1.5 hover:text-slate-950 transition-colors"
+                        >
+                          <Github className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                          <span className="align-middle">{data.personalInfo.github}</span>
+                        </a>
                       )}
                     </div>
                   </div>
@@ -425,15 +468,51 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                   {data.personalInfo.firstName} {data.personalInfo.lastName}
                 </h1>
                 <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-gray-600 text-[10px]">
-                  {data.personalInfo.email && <span>{data.personalInfo.email}</span>}
+                  {data.personalInfo.email && (
+                    <a 
+                      href={`mailto:${data.personalInfo.email}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="hover:text-gray-900 transition-colors"
+                    >
+                      {data.personalInfo.email}
+                    </a>
+                  )}
                   {data.personalInfo.email && data.personalInfo.phone && <span>|</span>}
-                  {data.personalInfo.phone && <span>{data.personalInfo.phone}</span>}
+                  {data.personalInfo.phone && (
+                    <a 
+                      href={`tel:${data.personalInfo.phone}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="hover:text-gray-900 transition-colors"
+                    >
+                      {data.personalInfo.phone}
+                    </a>
+                  )}
                   {data.personalInfo.phone && data.personalInfo.address && <span>|</span>}
                   {data.personalInfo.address && <span>{data.personalInfo.address}</span>}
                   {data.personalInfo.address && data.personalInfo.linkedin && <span>|</span>}
-                  {data.personalInfo.linkedin && <span>{data.personalInfo.linkedin.replace(/https?:\/\/(www\.)?/, '')}</span>}
+                  {data.personalInfo.linkedin && (
+                    <a 
+                      href={data.personalInfo.linkedin.startsWith('http') ? data.personalInfo.linkedin : `https://${data.personalInfo.linkedin}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="hover:text-gray-900 transition-colors"
+                    >
+                      {data.personalInfo.linkedin.replace(/https?:\/\/(www\.)?/, '')}
+                    </a>
+                  )}
                   {data.personalInfo.linkedin && data.personalInfo.github && <span>|</span>}
-                  {data.personalInfo.github && <span>{data.personalInfo.github.replace(/https?:\/\/(www\.)?/, '')}</span>}
+                  {data.personalInfo.github && (
+                    <a 
+                      href={data.personalInfo.github.startsWith('http') ? data.personalInfo.github : `https://${data.personalInfo.github}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="hover:text-gray-900 transition-colors"
+                    >
+                      {data.personalInfo.github.replace(/https?:\/\/(www\.)?/, '')}
+                    </a>
+                  )}
                 </div>
               </header>
             );
@@ -451,34 +530,54 @@ export const ResumePreview = forwardRef<HTMLDivElement, ResumePreviewProps>(
                   </h1>
                   <div className="flex flex-wrap justify-center gap-3 text-gray-600">
                     {data.personalInfo.email && (
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-3 w-3 flex-shrink-0" />
-                        <span className="text-xs">{data.personalInfo.email}</span>
-                      </div>
+                      <a 
+                        href={`mailto:${data.personalInfo.email}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="inline-flex items-center gap-1 hover:text-gray-950 transition-colors"
+                      >
+                        <Mail className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                        <span className="text-xs align-middle">{data.personalInfo.email}</span>
+                      </a>
                     )}
                     {data.personalInfo.phone && (
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3 flex-shrink-0" />
-                        <span className="text-xs">{data.personalInfo.phone}</span>
-                      </div>
+                      <a 
+                        href={`tel:${data.personalInfo.phone}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="inline-flex items-center gap-1 hover:text-gray-950 transition-colors"
+                      >
+                        <Phone className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                        <span className="text-xs align-middle">{data.personalInfo.phone}</span>
+                      </a>
                     )}
                     {data.personalInfo.address && (
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3 flex-shrink-0" />
-                        <span className="text-xs">{data.personalInfo.address}</span>
+                      <div className="inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                        <span className="text-xs align-middle">{data.personalInfo.address}</span>
                       </div>
                     )}
                     {data.personalInfo.linkedin && (
-                      <div className="flex items-center gap-1">
-                        <Linkedin className="h-3 w-3 flex-shrink-0" />
-                        <span className="text-xs">{data.personalInfo.linkedin}</span>
-                      </div>
+                      <a 
+                        href={data.personalInfo.linkedin.startsWith('http') ? data.personalInfo.linkedin : `https://${data.personalInfo.linkedin}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="inline-flex items-center gap-1 hover:text-gray-950 transition-colors"
+                      >
+                        <Linkedin className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                        <span className="text-xs align-middle">{data.personalInfo.linkedin}</span>
+                      </a>
                     )}
                     {data.personalInfo.github && (
-                      <div className="flex items-center gap-1">
-                        <Github className="h-3 w-3 flex-shrink-0" />
-                        <span className="text-xs">{data.personalInfo.github}</span>
-                      </div>
+                      <a 
+                        href={data.personalInfo.github.startsWith('http') ? data.personalInfo.github : `https://${data.personalInfo.github}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="inline-flex items-center gap-1 hover:text-gray-950 transition-colors"
+                      >
+                        <Github className="h-3.5 w-3.5 flex-shrink-0 align-middle" />
+                        <span className="text-xs align-middle">{data.personalInfo.github}</span>
+                      </a>
                     )}
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, Download, Save, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Moon, Sun, Download, Save, Eye, EyeOff, Trash2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -21,6 +21,7 @@ import { ResumeControls } from './ResumeControls';
 import { Footer } from './Footer';
 import { ResumeData } from '../types/resume';
 import { exportToPDF } from '../utils/pdfExport';
+import { exportToWord } from '../utils/wordExport';
 import { useToast } from '@/hooks/use-toast';
 
 /**
@@ -191,6 +192,27 @@ export const ResumeBuilder = () => {
   };
 
   /**
+   * Word export handler with error handling and user feedback
+   */
+  const handleExportWord = () => {
+    try {
+      console.log('Export Word clicked');
+      exportToWord(resumeData);
+      toast({
+        title: "Word Document Downloaded",
+        description: "Your resume has been downloaded in Word format successfully!"
+      });
+    } catch (error) {
+      console.error('Word export failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error downloading your resume in Word format.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
    * Generic handler for updating any section of resume data
    * @param section - The section key to update
    * @param data - The new data for that section
@@ -278,6 +300,10 @@ export const ResumeBuilder = () => {
               <Button onClick={handleExportPDF} size="sm" className="flex-shrink-0 h-8 px-2 sm:px-3">
                 <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
                 <span className="hidden sm:inline">PDF</span>
+              </Button>
+              <Button onClick={handleExportWord} size="sm" variant="outline" className="flex-shrink-0 h-8 px-2 sm:px-3 border-blue-200 hover:bg-blue-50 dark:border-blue-900 dark:hover:bg-blue-950">
+                <FileText className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1 text-blue-600 dark:text-blue-400" />
+                <span className="hidden sm:inline text-blue-600 dark:text-blue-400">Word</span>
               </Button>
               
               {/* Dark mode toggle */}

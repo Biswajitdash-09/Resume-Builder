@@ -1,7 +1,7 @@
 import { ResumeData, Education, Experience, Project, Skill, Certification } from '../types/resume';
 
 const splitLineIntoParts = (line: string): string[] => {
-  return line.split(/\||—|--|\s{2,}/).map(p => p.trim()).filter(p => p.length > 0);
+  return line.split(/\||—|--|\t|\s{2,}/).map(p => p.trim()).filter(p => p.length > 0);
 };
 
 const cleanAndDeduplicateLines = (lines: string[]): string[] => {
@@ -156,18 +156,35 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     cleaned = cleaned.replace(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/i, '');
     // Clean up empty parentheses/brackets and leading/trailing separators/whitespace
     cleaned = cleaned.replace(/\(\s*\)/g, '').replace(/\[\s*\]/g, '');
-    cleaned = cleaned.replace(/^[-•*+|,\s()\[\]]+|[-•*+|,\s()\[\]]+$/g, '');
+    cleaned = cleaned.replace(/^[-•*+|,\s]+|[-•*+|,\s]+$/g, '');
     return cleaned.trim();
   };
   
+  const SECTION_HEADERS_KEYS = ['summary', 'education', 'experience', 'projects', 'skills', 'certifications', 'interests'] as const;
+
+  const isSectionHeader = (lineVal: string): keyof typeof SECTION_HEADERS | null => {
+    const clean = lineVal.trim().toLowerCase();
+    if (clean.length > 40) return null; // headers are short
+    
+    if (/\b(?:summary|objective|profile|about\s+me)\b/i.test(clean)) return 'summary';
+    if (/\b(?:education|academic|academics)\b/i.test(clean)) return 'education';
+    if (/\b(?:experience|employment|work\s+history|career|history)\b/i.test(clean) && !/no\s+experience/i.test(clean)) return 'experience';
+    if (/\b(?:projects|key\s+projects|selected\s+projects|personal\s+projects)\b/i.test(clean)) return 'projects';
+    if (/\b(?:skills|technologies|technical\s+expertise|technical\s+skills|competencies)\b/i.test(clean)) return 'skills';
+    if (/\b(?:certifications|awards|licenses|achievements|accomplishments)\b/i.test(clean)) return 'certifications';
+    if (/\b(?:interests|hobbies)\b/i.test(clean)) return 'interests';
+    
+    return null;
+  };
+
   const SECTION_HEADERS = {
-    summary: /^(?:professional\s+)?summary|objective|executive\s+summary|about\s+me|profile$/i,
-    education: /^education|academic(?:\s+background|\s+profile|\s+record)?$/i,
-    experience: /^(?:work\s+)?experience|professional\s+experience|employment(?:\s+history)?|work\s+history$/i,
-    projects: /^projects|personal\s+projects|academic\s+projects|selected\s+projects$/i,
-    skills: /^skills|technical\s+skills|key\s+skills|core\s+competencies|skills\s+&?\s+expertise|technologies$/i,
-    certifications: /^certifications|certifications\s+&\s+awards|awards|licenses$/i,
-    interests: /^interests|interests\s+&\s+hobbies|hobbies$/i
+    summary: /summary/i,
+    education: /education/i,
+    experience: /experience/i,
+    projects: /projects/i,
+    skills: /skills/i,
+    certifications: /certifications/i,
+    interests: /interests/i
   };
 
   let currentSection: keyof typeof SECTION_HEADERS | 'header' = 'header';
@@ -183,15 +200,10 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
   };
 
   for (const line of lines) {
-    let matched = false;
-    for (const [key, regex] of Object.entries(SECTION_HEADERS)) {
-      if (regex.test(line)) {
-        currentSection = key as any;
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) {
+    const sectionMatch = isSectionHeader(line);
+    if (sectionMatch) {
+      currentSection = sectionMatch;
+    } else {
       sections[currentSection].push(line);
     }
   }
@@ -275,46 +287,93 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
 
   // 3. Parse Skills
   const skills: Skill[] = [];
-  const programmingLanguagesList = [
-    'javascript', 'typescript', 'python', 'java', 'c++', 'c', 'c#', 'go', 'rust', 'ruby', 'php', 'sql', 'html', 'css', 'kotlin', 'swift'
-  ];
-  const frameworksList = [
-    'react', 'angular', 'vue', 'next.js', 'express', 'django', 'flask', 'spring', 'laravel', 'tailwind', 'bootstrap', 'svelte'
-  ];
-  const devToolsList = [
-    'git', 'github', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'vs code', 'vite', 'webpack', 'jenkins', 'npm', 'yarn', 'bun'
-  ];
-  const spokenLanguagesList = [
-    'english', 'spanish', 'french', 'german', 'hindi', 'bengali', 'odia', 'mandarin', 'japanese', 'chinese'
-  ];
+  
+  const mapCategory = (prefix: string, skillName: string): Skill['category'] => {
+    const cleanPrefix = prefix.toLowerCase().trim();
+    const cleanSkill = skillName.toLowerCase().trim();
+    
+    if (/programming|language|coding/i.test(cleanPrefix)) {
+      return 'Programming Languages';
+    }
+    if (/soft\s*skill|interpersonal|communication|operations|leadership/i.test(cleanPrefix)) {
+      return 'Soft Skills';
+    }
+    if (/tool|dev\s*tool|database|sql|office|software|git|aws|cloud/i.test(cleanPrefix)) {
+      return 'Dev Tools';
+    }
+    if (/spoken|language|english|hindi|bengali|odia/i.test(cleanPrefix)) {
+      return 'Spoken Languages';
+    }
+    if (/framework|library|react|angular|vue|django/i.test(cleanPrefix)) {
+      return 'Frameworks';
+    }
+    
+    // Fallback to skill-name matching
+    const programmingLanguagesList = [
+      'javascript', 'typescript', 'python', 'java', 'c++', 'c', 'c#', 'go', 'rust', 'ruby', 'php', 'sql', 'html', 'css', 'kotlin', 'swift'
+    ];
+    const frameworksList = [
+      'react', 'angular', 'vue', 'next.js', 'express', 'django', 'flask', 'spring', 'laravel', 'tailwind', 'bootstrap', 'svelte'
+    ];
+    const devToolsList = [
+      'git', 'github', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'vs code', 'vite', 'webpack', 'jenkins', 'npm', 'yarn', 'bun', 'excel', 'word', 'outlook', 'supabase'
+    ];
+    const spokenLanguagesList = [
+      'english', 'spanish', 'french', 'german', 'hindi', 'bengali', 'odia', 'mandarin', 'japanese', 'chinese'
+    ];
+    
+    if (programmingLanguagesList.some(lang => cleanSkill === lang || cleanSkill.includes(lang))) {
+      return 'Programming Languages';
+    }
+    if (frameworksList.some(fw => cleanSkill === fw || cleanSkill.includes(fw))) {
+      return 'Frameworks';
+    }
+    if (devToolsList.some(tool => cleanSkill === tool || cleanSkill.includes(tool))) {
+      return 'Dev Tools';
+    }
+    if (spokenLanguagesList.some(lang => cleanSkill === lang || cleanSkill.includes(lang))) {
+      return 'Spoken Languages';
+    }
+    if (['leadership', 'communication', 'teamwork', 'problem solving', 'management', 'creativity'].some(soft => cleanSkill.includes(soft))) {
+      return 'Soft Skills';
+    }
+    
+    return 'Technical Subjects';
+  };
 
   for (const line of sections.skills) {
+    let prefix = '';
     let skillItemsString = line;
     if (line.includes(':')) {
       const colonIndex = line.indexOf(':');
+      prefix = line.slice(0, colonIndex);
       skillItemsString = line.slice(colonIndex + 1);
     }
     
-    // Split by commas, semicolons, bullets, or pipes
-    const rawSkills = skillItemsString.split(/[,;|•]/);
+    // Split by commas, semicolons, bullets, or pipes, but NOT if they are inside parentheses
+    const rawSkills: string[] = [];
+    let currentSkill = '';
+    let parenDepth = 0;
+    for (let charIndex = 0; charIndex < skillItemsString.length; charIndex++) {
+      const char = skillItemsString[charIndex];
+      if (char === '(' || char === '[' || char === '{') parenDepth++;
+      else if (char === ')' || char === ']' || char === '}') parenDepth--;
+      
+      if (parenDepth === 0 && (char === ',' || char === ';' || char === '|' || char === '•')) {
+        rawSkills.push(currentSkill);
+        currentSkill = '';
+      } else {
+        currentSkill += char;
+      }
+    }
+    if (currentSkill) {
+      rawSkills.push(currentSkill);
+    }
+
     for (const rawSkill of rawSkills) {
       const name = rawSkill.trim().replace(/^[-•*+]\s*/, '');
-      if (name.length > 1 && name.length < 50) {
-        const lowerName = name.toLowerCase();
-        let category: Skill['category'] = 'Technical Subjects';
-        
-        if (programmingLanguagesList.some(lang => lowerName === lang || lowerName.includes(lang))) {
-          category = 'Programming Languages';
-        } else if (frameworksList.some(fw => lowerName === fw || lowerName.includes(fw))) {
-          category = 'Frameworks';
-        } else if (devToolsList.some(tool => lowerName === tool || lowerName.includes(tool))) {
-          category = 'Dev Tools';
-        } else if (spokenLanguagesList.some(lang => lowerName === lang || lowerName.includes(lang))) {
-          category = 'Spoken Languages';
-        } else if (['leadership', 'communication', 'teamwork', 'problem solving', 'management', 'creativity'].some(soft => lowerName.includes(soft))) {
-          category = 'Soft Skills';
-        }
-        
+      if (name.length > 1 && name.length < 100) {
+        const category = mapCategory(prefix, name);
         skills.push({
           id: `imported-skill-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           name,
@@ -326,8 +385,11 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
 
   // Helper date-range extractor from string
   const extractDateRange = (line: string): { start: string, end: string, current: boolean } => {
+    // Remove GPA patterns to avoid misidentifying values like "8.5/10" as dates
+    const cleanedLine = line.replace(/(?:gpa|cgpa|percentage|score|g.p.a|c.g.p.a)[:\s]+(\d+(?:\.\d+)?(?:\/\d+)?|\d+%?)/gi, '');
+    
     const dateRangeRegex = /([a-z]+\s+\d{4}|\d{4}|\d{1,2}\/\d{2,4})\s*[-–—to\s]+\s*([a-z]+\s+\d{4}|\d{4}|\d{1,2}\/\d{2,4}|present|current)/i;
-    const match = line.match(dateRangeRegex);
+    const match = cleanedLine.match(dateRangeRegex);
     if (match) {
       const startStr = match[1];
       const endStr = match[2];
@@ -341,7 +403,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     
     // Single date fallback
     const singleDateRegex = /\b([a-z]+\s+\d{4}|\d{4})\b/i;
-    const singleMatch = line.match(singleDateRegex);
+    const singleMatch = cleanedLine.match(singleDateRegex);
     if (singleMatch) {
       return {
         start: normalizeDate(singleMatch[1]),
@@ -407,13 +469,16 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
           lineUsedForFields = true;
         }
         if (isDegree) {
-          degree = cleanMetadata(part);
           let fieldMatch = part.match(/\bin\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
           if (!fieldMatch) {
             fieldMatch = part.match(/(?<!bachelor|master|associate|doctor|science)\s+of\s+([a-zA-Z\s]+)(?:$|\(|,)/i);
           }
           if (fieldMatch) {
             fieldOfStudy = cleanMetadata(fieldMatch[1].trim());
+            // Strip the field match from the degree name
+            degree = cleanMetadata(part.replace(fieldMatch[0], '').trim());
+          } else {
+            degree = cleanMetadata(part);
           }
           lineUsedForFields = true;
         }
@@ -489,6 +554,7 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
     let link = '';
     let github = '';
     const descLines: string[] = [];
+    const remainingParts: string[] = [];
     
     for (const line of group) {
       if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
@@ -497,13 +563,8 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
       }
       
       const parts = splitLineIntoParts(line);
-      let lineUsedForFields = false;
-      
       for (const part of parts) {
         const dateRange = extractDateRange(part);
-        const hasPosition = /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator/i.test(part);
-        const hasCompany = /pvt|ltd|inc|llc|corp|co\.|company|labs|technologies|solutions/i.test(part);
-        const hasLocation = /(?:bhubaneswar|berhampur|balasore|odisha|delhi|mumbai|bangalore|pune|hyderabad|chennai|california|new york|london|india|usa|uk)/i.test(part);
         const githubMatch = part.match(githubRegex);
         const generalUrlMatch = part.match(/https?:\/\/[^\s]+/);
         
@@ -511,41 +572,34 @@ export const parseResumeText = (text: string): Partial<ResumeData> => {
           startDate = dateRange.start;
           endDate = dateRange.end;
           current = dateRange.current;
-          lineUsedForFields = true;
-        }
-        if (githubMatch) {
+        } else if (githubMatch) {
           github = 'https://' + githubMatch[0];
-          lineUsedForFields = true;
         } else if (generalUrlMatch) {
           link = generalUrlMatch[0];
-          lineUsedForFields = true;
-        }
-        if (hasPosition) {
-          position = cleanMetadata(part);
-          lineUsedForFields = true;
-        }
-        if (hasCompany && !hasPosition) {
-          company = cleanMetadata(part);
-          lineUsedForFields = true;
-        }
-        if (hasLocation && !hasPosition && !hasCompany) {
-          location = cleanMetadata(part);
-          lineUsedForFields = true;
-        }
-      }
-      
-      if (!lineUsedForFields) {
-        const wordCount = line.split(/\s+/).length;
-        if (wordCount > 0 && wordCount < 5 && !position && /developer|engineer|intern|manager|lead|analyst|consultant/i.test(line)) {
-          position = cleanMetadata(line);
-        } else if (wordCount > 0 && wordCount < 6 && !company && !line.includes(' ')) {
-          company = cleanMetadata(line);
         } else {
-          descLines.push(line);
+          remainingParts.push(part);
         }
       }
     }
     
+    // Positional extraction from non-date/non-url parts
+    const positionIndex = remainingParts.findIndex(part => 
+      /developer|engineer|intern|manager|lead|analyst|consultant|specialist|officer|administrator|staff|member|associate|founder/i.test(part)
+    );
+    
+    if (positionIndex !== -1) {
+      position = cleanMetadata(remainingParts[positionIndex]);
+      remainingParts.splice(positionIndex, 1);
+    }
+    
+    if (remainingParts.length === 1) {
+      company = cleanMetadata(remainingParts[0]);
+    } else if (remainingParts.length >= 2) {
+      company = cleanMetadata(remainingParts[0]);
+      location = cleanMetadata(remainingParts[1]);
+    }
+    
+    // Fallback Positional checks if fields are missing
     if (!position && group.length > 0) {
       const fallbackPos = group.find(l => !/^[-•*+]\s*/.test(l) && !extractDateRange(l).start);
       position = cleanMetadata(fallbackPos || group[0]);
